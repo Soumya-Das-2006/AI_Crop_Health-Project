@@ -1,0 +1,160 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Farmer Dashboard - AgriCulture{% endblock %}
+{% block body_class %}agrolease-farmer-dashboard-page{% endblock %}
+
+{% block content %}
+
+<div class="page-title dark-background"
+     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Farmer Dashboard</h1>
+    <p>Find and manage agricultural land leases</p>
+    <nav class="breadcrumbs">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li><a href="/">AgroLease</a></li>
+        <li class="current">Farmer Dashboard</li>
+      </ol>
+    <a href="{% url \'agrolease:logout\' %}" class="btn btn-outline-danger ms-2">Logout</a>\1
+  </div>
+</div>
+
+<section class="section">
+  <div class="container">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">Farmer Dashboard</h1>
+        <p class="text-gray-600 mt-2">Find and manage agricultural land leases</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-blue-100 rounded-full">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Total Requests</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ total_requests }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-green-100 rounded-full">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Active Leases</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ active_count }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-yellow-100 rounded-full">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Pending</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ total_requests|add:active_count|add:-1 }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="mb-8">
+        <a href="{% url 'agrolease:search_land' %}" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium inline-flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+            Search Land
+        </a>
+    </div>
+
+    <!-- My Requests -->
+    <div class="bg-white rounded-lg shadow mb-8">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800">My Lease Requests</h2>
+        </div>
+        <div class="p-6">
+            {% if requests %}
+                <div class="space-y-4">
+                    {% for lease_req in farmer_requests %}
+                    <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                        <div>
+                            <h3 class="font-medium text-gray-900">Land in Mysore, Karnataka</h3>
+                            <p class="text-sm text-gray-600">{{ lease_req.message }}</p>
+                            <p class="text-xs text-gray-500">{{ lease_req.request_date }}</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            {% if lease_req.status == 'pending' %}
+                                <span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">Pending</span>
+                            {% elif lease_req.status == 'approved' %}
+                                <span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Approved</span>
+                                <a href="{% url 'agrolease:agreement_preview' lease_req.id %}" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">View Agreement</a>
+                            {% else %}
+                                <span class="px-2 py-1 text-xs bg-red-100 text-red-800 rounded">Rejected</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No requests yet</h3>
+                    <p class="mt-1 text-sm text-gray-500">Start by searching for available land.</p>
+                    <div class="mt-6">
+                        <a href="{% url 'agrolease:search_land' %}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                            Search Land
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Active Leases -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800">Active Leases</h2>
+        </div>
+        <div class="p-6">
+            {% if active_leases %}
+                <div class="space-y-4">
+                    {% for lease in active_leases %}
+                    <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                        <div>
+                            <h3 class="font-medium text-gray-900">Land in Coimbatore, Tamil Nadu</h3>
+                            <p class="text-sm text-gray-600">Lease active until Dec 2024</p>
+                            <p class="text-xs text-gray-500">Started: Jan 2024</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Active</span>
+                            <button class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">View Details</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-gray-500 text-center py-8">No active leases.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

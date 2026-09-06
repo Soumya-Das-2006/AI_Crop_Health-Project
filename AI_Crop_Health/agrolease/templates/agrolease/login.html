@@ -1,0 +1,87 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}AgroLease Login - AgriCulture{% endblock %}
+{% block body_class %}agrolease-login-page{% endblock %}
+
+{% block content %}
+
+<div class="page-title dark-background"
+     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>AgroLease Login</h1>
+    <p>Access your agricultural land leasing account</p>
+    <nav class="breadcrumbs">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li><a href="/">AgroLease</a></li>
+        <li class="current">Login</li>
+      </ol>
+    <a href="{% url \'agrolease:logout\' %}" class="btn btn-outline-danger ms-2">Logout</a>\1
+  </div>
+</div>
+
+<section class="section">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-6">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Login to AgroLease</h2>
+                <p class="text-gray-600 mt-2">Enter your mobile number to continue</p>
+            </div>
+
+            
+{% if messages %}
+<div class="messages mb-4">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+\1
+                {% csrf_token %}
+
+                <div>
+                    <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">
+                        Mobile Number
+                    </label>
+                    <div class="flex">
+                        <span class="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md">
+                            +91
+                        </span>
+                        <input
+                            type="tel"
+                            id="phone"
+                            name="phone"
+                            required
+                            pattern="[6-9][0-9]{9}"
+                            class="flex-1 min-w-0 block w-full px-3 py-2 border border-gray-300 rounded-none rounded-r-md focus:ring-green-500 focus:border-green-500"
+                            placeholder="Enter 10-digit number"
+                        >
+                    </div>
+                </div>
+
+                <button
+                    type="submit"
+                    class="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium"
+                >
+                    Send OTP
+                </button>
+            </form>
+
+            <div class="text-center mt-6">
+                <p class="text-gray-600 text-sm">
+                    Don't have an account?
+                    <a href="{% url 'agrolease:register' %}" class="text-green-600 hover:text-green-700 font-medium">
+                        Register here
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

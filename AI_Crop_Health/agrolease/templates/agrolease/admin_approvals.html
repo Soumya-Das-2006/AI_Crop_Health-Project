@@ -1,0 +1,193 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Land Approvals - AgriCulture{% endblock %}
+{% block body_class %}agrolease-admin-approvals-page{% endblock %}
+
+{% block content %}
+
+<div class="page-title dark-background"
+     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Land Approvals</h1>
+    <p>Review and approve land listings before they go live</p>
+    <nav class="breadcrumbs">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li><a href="/">AgroLease</a></li>
+        <li><a href="{% url 'agrolease:admin_dashboard' %}">Admin Dashboard</a></li>
+        <li class="current">Land Approvals</li>
+      </ol>
+    <a href="{% url \'agrolease:logout\' %}" class="btn btn-outline-danger ms-2">Logout</a>\1
+  </div>
+</div>
+
+<section class="section">
+  <div class="container">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">Land Approvals</h1>
+        <p class="text-gray-600 mt-2">Review and approve land listings before they go live</p>
+    </div>
+
+    <!-- Approvals List -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800">Pending Land Approvals</h2>
+        </div>
+        <div class="p-6">
+            {% if approvals %}
+                <div class="space-y-6">
+                    {% for approval in approvals %}
+                    <div class="border border-gray-200 rounded-lg p-6">
+                        <!-- Approval Header -->
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">{{ approval.land_location }}</h3>
+                                <p class="text-sm text-gray-600">Owner: {{ approval.owner }}</p>
+                                <p class="text-xs text-gray-500">Submitted: 1 day ago</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="px-3 py-1 text-sm bg-yellow-100 text-yellow-800 rounded-full">{{ approval.status|title }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Land Details -->
+                        <div class="bg-green-50 rounded-lg p-4 mb-4">
+                            <h4 class="font-medium text-gray-900 mb-3">Land Information</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Size:</span>
+                                    <span class="font-medium">8 acres</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Soil Type:</span>
+                                    <span class="font-medium">Alluvial Soil</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Water Source:</span>
+                                    <span class="font-medium">Borewell</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Rent:</span>
+                                    <span class="font-medium">₹40,000/season</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Owner Verification -->
+                        <div class="bg-blue-50 rounded-lg p-4 mb-4">
+                            <h4 class="font-medium text-gray-900 mb-3">Owner Verification Status</h4>
+                            <div class="space-y-2">
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    <span class="text-sm text-gray-700">Identity verified</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    <span class="text-sm text-gray-700">Land ownership documents verified</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    <span class="text-sm text-gray-700">Address confirmed</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Land Images -->
+                        <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                            <h4 class="font-medium text-gray-900 mb-3">Land Images (3 uploaded)</h4>
+                            <div class="grid grid-cols-3 gap-4">
+                                <div class="aspect-w-4 aspect-h-3 bg-gray-200 rounded-lg flex items-center justify-center">
+                                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                </div>
+                                <div class="aspect-w-4 aspect-h-3 bg-gray-200 rounded-lg flex items-center justify-center">
+                                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                </div>
+                                <div class="aspect-w-4 aspect-h-3 bg-gray-200 rounded-lg flex items-center justify-center">
+                                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Approval Checklist -->
+                        <div class="bg-yellow-50 rounded-lg p-4 mb-4">
+                            <h4 class="font-medium text-gray-900 mb-3">Approval Checklist</h4>
+                            <div class="space-y-2">
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    <span class="text-sm text-gray-700">Land details complete and accurate</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    <span class="text-sm text-gray-700">Images are authentic and clear</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    <span class="text-sm text-gray-700">Owner verification complete</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    <span class="text-sm text-gray-700">No duplicate listings found</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex flex-col sm:flex-row gap-3 justify-end">
+                            <button class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                                Reject Listing
+                            </button>
+                            <button class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Approve Listing
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">All caught up!</h3>
+                    <p class="mt-1 text-sm text-gray-500">No pending land approvals at this time.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="text-center mt-8">
+        <a href="{% url 'agrolease:admin_dashboard' %}" class="text-green-600 hover:text-green-700 font-medium">
+            ← Back to Admin Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

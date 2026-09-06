@@ -1,0 +1,142 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}User Verifications - AgriCulture{% endblock %}
+{% block body_class %}agrolease-admin-verifications-page{% endblock %}
+
+{% block content %}
+
+<div class="page-title dark-background"
+     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>User Verifications</h1>
+    <p>Review and approve user identity and document verifications</p>
+    <nav class="breadcrumbs">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li><a href="/">AgroLease</a></li>
+        <li><a href="{% url 'agrolease:admin_dashboard' %}">Admin Dashboard</a></li>
+        <li class="current">User Verifications</li>
+      </ol>
+    <a href="{% url \'agrolease:logout\' %}" class="btn btn-outline-danger ms-2">Logout</a>\1
+  </div>
+</div>
+
+<section class="section">
+  <div class="container">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">User Verifications</h1>
+        <p class="text-gray-600 mt-2">Review and approve user identity and document verifications</p>
+    </div>
+
+    <!-- Verifications List -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800">Pending Verifications</h2>
+        </div>
+        <div class="p-6">
+            {% if verifications %}
+                <div class="space-y-6">
+                    {% for verification in verifications %}
+                    <div class="border border-gray-200 rounded-lg p-6">
+                        <!-- Verification Header -->
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">{{ verification.name }}</h3>
+                                <p class="text-sm text-gray-600">Verification Type: {{ verification.type }}</p>
+                                <p class="text-xs text-gray-500">Submitted: 2 days ago</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="px-3 py-1 text-sm bg-yellow-100 text-yellow-800 rounded-full">{{ verification.status|title }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Document Preview -->
+                        <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                            <h4 class="font-medium text-gray-900 mb-3">Submitted Documents</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="flex items-center space-x-3">
+                                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    <div>
+                                        <p class="font-medium text-gray-900">Aadhaar Card</p>
+                                        <p class="text-sm text-gray-600">ID: XXXX-XXXX-1234</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    <div>
+                                        <p class="font-medium text-gray-900">Address Proof</p>
+                                        <p class="text-sm text-gray-600">Utility Bill</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Verification Checklist -->
+                        <div class="bg-blue-50 rounded-lg p-4 mb-4">
+                            <h4 class="font-medium text-gray-900 mb-3">Verification Checklist</h4>
+                            <div class="space-y-2">
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    <span class="text-sm text-gray-700">Document authenticity verified</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    <span class="text-sm text-gray-700">Address matches records</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                    </svg>
+                                    <span class="text-sm text-gray-700">Background check pending</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex flex-col sm:flex-row gap-3 justify-end">
+                            <button class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                                Reject Verification
+                            </button>
+                            <button class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Approve Verification
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">All caught up!</h3>
+                    <p class="mt-1 text-sm text-gray-500">No pending verifications at this time.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="text-center mt-8">
+        <a href="{% url 'agrolease:admin_dashboard' %}" class="text-green-600 hover:text-green-700 font-medium">
+            ← Back to Admin Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,145 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}AgroLease - AgriCulture{% endblock %}
+{% block body_class %}agrolease-role-selection-page{% endblock %}
+
+{% block content %}
+
+<div class="page-title dark-background"
+     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>AgroLease</h1>
+    <p>Choose your role to get started with agricultural land leasing</p>
+    <nav class="breadcrumbs">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li class="current">AgroLease</li>
+      </ol>
+    <a href="{% url \'agrolease:logout\' %}" class="btn btn-outline-danger ms-2">Logout</a>\1
+  </div>
+</div>
+
+<section class="section">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-8 text-center">
+        <!-- Header -->
+        <div class="role-selection-header">
+            <h2 class="role-selection-title">Welcome to AgroLease</h2>
+            <p class="role-selection-subtitle">Connect farmers with agricultural land owners for sustainable cultivation</p>
+        </div>
+
+        <!-- Role Selection Cards -->
+        <div class="role-cards-grid">
+            <!-- Land Owner Card -->
+            <div class="role-card role-card-owner" onclick="selectRole('owner')">
+                <div class="role-card-content">
+                    <div class="role-card-icon">
+                        <svg class="role-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                    </div>
+                    <h3 class="role-card-title">Land Owner</h3>
+                    <p class="role-card-description">List your agricultural land for rent and connect with farmers</p>
+                </div>
+
+                <ul class="role-features-list">
+                    <li class="role-feature-item">
+                        <svg class="role-feature-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        List multiple land parcels
+                    </li>
+                    <li class="role-feature-item">
+                        <svg class="role-feature-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Review lease requests
+                    </li>
+                    <li class="role-feature-item">
+                        <svg class="role-feature-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Secure digital agreements
+                    </li>
+                </ul>
+
+                <button class="role-card-button role-card-button-owner">
+                    Continue as Land Owner
+                </button>
+            </div>
+
+            <!-- Farmer Card -->
+            <div class="role-card role-card-farmer" onclick="selectRole('farmer')">
+                <div class="role-card-content">
+                    <div class="role-card-icon">
+                        <svg class="role-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                        </svg>
+                    </div>
+                    <h3 class="role-card-title">Farmer</h3>
+                    <p class="role-card-description">Find suitable agricultural land for your farming needs</p>
+                </div>
+
+                <ul class="role-features-list">
+                    <li class="role-feature-item">
+                        <svg class="role-feature-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Search verified land listings
+                    </li>
+                    <li class="role-feature-item">
+                        <svg class="role-feature-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Submit lease requests
+                    </li>
+                    <li class="role-feature-item">
+                        <svg class="role-feature-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Digital lease agreements
+                    </li>
+                </ul>
+
+                <button class="role-card-button role-card-button-farmer">
+                    Continue as Farmer
+                </button>
+            </div>
+        </div>
+
+        <!-- Admin Access (Hidden) -->
+        <div class="admin-access-section">
+            <button onclick="selectRole('admin')" class="admin-access-button">
+                Admin Access
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function selectRole(role) {
+    // Create a form to submit the role selection
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '';
+
+    // Add CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfToken) {
+        form.appendChild(csrfToken.cloneNode(true));
+    }
+
+    // Add role input
+    const roleInput = document.createElement('input');
+    roleInput.type = 'hidden';
+    roleInput.name = 'role';
+    roleInput.value = role;
+    form.appendChild(roleInput);
+
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}OTP Verification - AgriCulture{% endblock %}
+{% block body_class %}agrolease-otp-page{% endblock %}
+
+{% block content %}
+
+<div class="page-title dark-background"
+     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>OTP Verification</h1>
+    <p>Verify your mobile number to continue</p>
+    <nav class="breadcrumbs">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li><a href="/">AgroLease</a></li>
+        <li><a href="{% url 'agrolease:login' %}">Login</a></li>
+        <li class="current">OTP Verification</li>
+      </ol>
+    <a href="{% url \'agrolease:logout\' %}" class="btn btn-outline-danger ms-2">Logout</a>\1
+  </div>
+</div>
+
+<section class="section">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-6">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Verify Your Number</h2>
+                <p class="text-gray-600 mt-2">Enter the 6-digit OTP sent to your mobile</p>
+            </div>
+
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+
+                <div>
+                    <label for="otp" class="block text-sm font-medium text-gray-700 mb-1">
+                        OTP Code
+                    </label>
+                    <input
+                        type="text"
+                        id="otp"
+                        name="otp"
+                        required
+                        pattern="[0-9]{6}"
+                        maxlength="6"
+                        class="block w-full px-3 py-3 text-center text-2xl tracking-widest border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                        placeholder="000000"
+                    >
+                </div>
+
+                <button
+                    type="submit"
+                    class="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium"
+                >
+                    Verify OTP
+                </button>
+            </form>
+
+            <div class="text-center mt-6">
+                <p class="text-sm text-gray-600">
+                    Didn't receive OTP?
+                    <button class="text-green-600 hover:text-green-700 font-medium">
+                        Resend OTP
+                    </button>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-focus on OTP input
+document.getElementById('otp').focus();
+
+// Auto-submit when 6 digits entered
+document.getElementById('otp').addEventListener('input', function(e) {
+    if (e.target.value.length === 6) {
+        // Optional: Auto-submit form
+        // e.target.form.submit();
+    }
+});
+</script>
+{% endblock %}

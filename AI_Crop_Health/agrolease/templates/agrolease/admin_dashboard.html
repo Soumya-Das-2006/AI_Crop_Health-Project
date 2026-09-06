@@ -1,0 +1,138 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Admin Dashboard - AgriCulture{% endblock %}
+{% block body_class %}agrolease-admin-dashboard-page{% endblock %}
+
+{% block content %}
+
+<div class="page-title dark-background"
+     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Admin Dashboard</h1>
+    <p>Manage AgroLease platform and user verifications</p>
+    <nav class="breadcrumbs">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li><a href="/">AgroLease</a></li>
+        <li class="current">Admin Dashboard</li>
+      </ol>
+    <a href="{% url \'agrolease:logout\' %}" class="btn btn-outline-danger ms-2">Logout</a>\1
+  </div>
+</div>
+
+<section class="section">
+  <div class="container">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
+        <p class="text-gray-600 mt-2">Manage AgroLease platform and user verifications</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-blue-100 rounded-full">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Total Users</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ total_users }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-yellow-100 rounded-full">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Pending Verifications</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ pending_verifications }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-orange-100 rounded-full">
+                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Pending Approvals</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ pending_approvals }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-green-100 rounded-full">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Active Leases</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ active_leases }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="mb-8">
+        <a href="{% url 'agrolease:admin_verifications' %}" class="bg-yellow-600 text-white px-6 py-3 rounded-lg hover:bg-yellow-700 transition-colors font-medium inline-flex items-center mr-4">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Review Verifications
+        </a>
+        <a href="{% url 'agrolease:admin_approvals' %}" class="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors font-medium inline-flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            Review Land Approvals
+        </a>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800">Recent Platform Activity</h2>
+        </div>
+        <div class="p-6">
+            <div class="space-y-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <p class="text-sm text-gray-600">New user registration: Rajesh Kumar (Land Owner)</p>
+                    <span class="text-xs text-gray-400">5 min ago</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <p class="text-sm text-gray-600">Land verification completed for Mysore property</p>
+                    <span class="text-xs text-gray-400">1 hour ago</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <p class="text-sm text-gray-600">Lease agreement signed between farmer and landowner</p>
+                    <span class="text-xs text-gray-400">2 hours ago</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    <p class="text-sm text-gray-600">New land listing submitted for approval</p>
+                    <span class="text-xs text-gray-400">4 hours ago</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
