@@ -1,0 +1,89 @@
+# Core Django
+Django>=4.2,<5.0
+
+# TensorFlow Lite (Python 3.12 compatible)
+tensorflow>=2.16.0
+tf-keras>=2.21.0,<2.22.0
+
+# Image processing
+Pillow>=10.0.0
+opencv-python>=4.8.0
+
+# Numerical computing
+numpy>=1.26.0
+pandas>=2.0.0
+
+# Production
+gunicorn>=21.2.0
+whitenoise>=6.5.0
+
+# PostgreSQL
+psycopg>=3.1
+
+
+
+
+# Core Django
+Django>=4.2,<5.0
+
+# TensorFlow Lite for model inference
+tensorflow>=2.13.0
+
+# Image processing
+Pillow>=10.0.0
+opencv-python>=4.8.0
+
+# Numerical computing
+numpy>=1.24.0
+
+# Optional: For production deployment
+gunicorn>=21.2.0
+whitenoise>=6.5.0
+
+# Optional: Database (if using PostgreSQL in production)
+psycopg2-binary>=2.9.0
+
+# ================================================
+# AI_Crop_Health Requirements
+# ================================================
+# Python 3.12+ recommended
+# Install with: pip install -r requirements.txt
+# ================================================
+
+# Django
+django==4.2.17
+
+# Environment Variables
+python-dotenv==1.0.1
+
+# Google Gemini AI (NEW SDK)
+google-genai==0.8.0
+
+# Weather API
+requests==2.32.3
+
+# Image Processing
+Pillow==11.0.0
+
+# Database (optional - for PostgreSQL)
+# psycopg2-binary==2.9.10
+
+# Machine Learning (for crop prediction)
+scikit-learn>=1.3.0
+
+# Machine Learning (for disease detection)
+# tensorflow==2.18.0
+# tensorflow-lite==2.15.0
+# numpy==1.26.4
+
+# Development Tools
+# django-debug-toolbar==4.4.6
+# ipython==8.30.0
+
+# Production
+# gunicorn==23.0.0
+# whitenoise==6.8.2
+
+# Testing
+# pytest==8.3.4
+# pytest-django==4.9.0

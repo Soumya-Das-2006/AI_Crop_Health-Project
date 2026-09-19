@@ -1,0 +1,267 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Support & Suggestions - AgriCulture{% endblock %}
+{% block body_class %}support-page{% endblock %}
+
+{% block extra_css %}
+<style>
+/* === Suggestions Card === */
+.suggestion-card {
+    background: linear-gradient(135deg, #ffffff, #f8fff5);
+    border-left: 5px solid #28a745;
+    border-radius: 12px;
+    padding: 22px;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+    transition: all 0.3s ease;
+}
+
+.suggestion-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 14px 30px rgba(0,0,0,0.12);
+}
+
+/* === Category Badge === */
+.category-badge {
+    padding: 6px 12px;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.category-general { background: #6c757d; color: #fff; }
+.category-urgent { background: #dc3545; color: #fff; }
+.category-seasonal { background: #28a745; color: #fff; }
+.category-crop-specific { background: #0d6efd; color: #fff; }
+
+/* === Chat === */
+.chat-container {
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    height: 500px;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-messages {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+}
+
+.message {
+    margin-bottom: 15px;
+    padding: 10px 15px;
+    border-radius: 18px;
+    max-width: 70%;
+}
+
+.message.user {
+    background-color: #0d6efd;
+    color: #fff;
+    margin-left: auto;
+}
+
+.message.admin {
+    background-color: #e9ecef;
+    color: #333;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Page Title -->
+<div class="page-title dark-background" data-aos="fade"
+     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Support & Suggestions</h1>
+    <p>Get agricultural suggestions and connect with our support team</p>
+    <nav class="breadcrumbs">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li class="current">Support</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+<!-- End Page Title -->
+
+<!-- Support Section -->
+<section class="support section">
+  <div class="container">
+
+    <!-- Suggestions Section -->
+    <div class="row mb-5">
+      <div class="col-12">
+        <h2 class="section-title">Agricultural Suggestions</h2>
+        <p class="section-subtitle">Latest tips and recommendations from our agricultural experts</p>
+      </div>
+    </div>
+
+    <div class="row">
+      {% for suggestion in suggestions %}
+      <div class="col-lg-6 col-md-6">
+        <div class="suggestion-card">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <h5 class="card-title mb-0">{{ suggestion.title }}</h5>
+            <span class="category-badge category-{{ suggestion.category|lower|slugify }}">
+              {{ suggestion.category }}
+            </span>
+          </div>
+
+          <p class="card-text mb-3">{{ suggestion.description }}</p>
+
+          <div class="d-flex justify-content-between align-items-center">
+            {% if suggestion.crop %}
+            <small class="text-muted">
+              <i class="fas fa-seedling"></i> {{ suggestion.crop }}
+            </small>
+            {% endif %}
+            <small class="text-muted">
+              <i class="far fa-calendar"></i> {{ suggestion.created_at|date:"M d, Y" }}
+            </small>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="col-12">
+        <div class="text-center py-5">
+          <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
+          <h3>No suggestions available</h3>
+          <p>Please check back later for agricultural tips and recommendations.</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Chat Section -->
+    <div class="row mt-5">
+      <div class="col-12">
+        <h2 class="section-title">Support Chat</h2>
+        <p class="section-subtitle">Connect directly with our agricultural support team</p>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-lg-8 mx-auto">
+        <div class="chat-container">
+          <div class="chat-messages" id="chatMessages">
+            {% for message in messages %}
+            <div class="message {% if message.is_from_admin %}admin{% else %}user{% endif %}">
+              <div>{{ message.message }}</div>
+              <div class="message-time">{{ message.created_at|date:"M d, H:i" }}</div>
+            </div>
+            {% empty %}
+            <div class="text-center text-muted py-4">
+              <i class="fas fa-comments fa-2x mb-2"></i>
+              <p>Start a conversation with our support team</p>
+            </div>
+            {% endfor %}
+          </div>
+
+          <div class="chat-input">
+            <div class="input-group">
+              <input type="text" class="form-control" id="messageInput"
+                     placeholder="Type your message here..." maxlength="500">
+              <div class="input-group-append">
+                <button class="btn btn-send" type="button" id="sendButton">
+                  <i class="fas fa-paper-plane"></i> Send
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const messageInput = document.getElementById('messageInput');
+    const sendButton = document.getElementById('sendButton');
+    const chatMessages = document.getElementById('chatMessages');
+
+    // Send message function
+    function sendMessage() {
+        const message = messageInput.value.trim();
+        if (!message) return;
+
+        // Disable input while sending
+        messageInput.disabled = true;
+        sendButton.disabled = true;
+
+        fetch('{% url "features:send_support_message" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ message: message })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Add message to chat
+                addMessageToChat(data.message, false);
+                messageInput.value = '';
+
+                // Scroll to bottom
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            } else {
+                alert('Error: ' + (data.error || 'Failed to send message'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to send message. Please try again.');
+        })
+        .finally(() => {
+            // Re-enable input
+            messageInput.disabled = false;
+            sendButton.disabled = false;
+            messageInput.focus();
+        });
+    }
+
+    // Add message to chat UI
+    function addMessageToChat(messageData, isAdmin) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${isAdmin ? 'admin' : 'user'}`;
+
+        const messageText = document.createElement('div');
+        messageText.textContent = messageData.message;
+
+        const messageTime = document.createElement('div');
+        messageTime.className = 'message-time';
+        messageTime.textContent = new Date(messageData.created_at).toLocaleString();
+
+        messageDiv.appendChild(messageText);
+        messageDiv.appendChild(messageTime);
+
+        chatMessages.appendChild(messageDiv);
+    }
+
+    // Event listeners
+    sendButton.addEventListener('click', sendMessage);
+
+    messageInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    // Auto-scroll to bottom on load
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+});
+</script>
+{% endblock %}

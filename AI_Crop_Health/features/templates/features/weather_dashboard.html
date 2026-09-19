@@ -1,0 +1,433 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Weather Information - AgriCulture{% endblock %}
+{% block body_class %}weather-dashboard-page{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'features/weather_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- Page Title -->
+<div class="page-title dark-background" data-aos="fade"
+     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Weather Information</h1>
+    <p>Complete weather details to help farmers make better decisions</p>
+    <nav class="breadcrumbs">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li class="current">Weather Dashboard</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+<!-- End Page Title -->
+
+<div class="weather-dashboard">
+    <!-- Header with City Selection -->
+    <div class="weather-header">
+        <h2><i class="bi bi-cloud-sun"></i> Weather Dashboard – {{ city }}</h2>
+        <div class="city-selector">
+            <form method="get" class="city-form" id="city-form">
+                <input type="text" 
+                       name="city" 
+                       value="{{ city }}" 
+                       placeholder="Search city (e.g., Delhi, Mumbai, Chennai)..."
+                       class="city-input"
+                       id="city-input"
+                       autocomplete="off">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Search
+                </button>
+            </form>
+            <div class="search-suggestions" id="search-suggestions">
+                <!-- Suggestions will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Weather Alerts -->
+    <div class="weather-alerts">
+        {% if weather.alerts %}
+        <div class="alert-box">
+            <i class="bi bi-exclamation-triangle"></i>
+            <div class="alert-content">
+                <h4>{{ weather.alerts.0.event }}</h4>
+                <p>{{ weather.alerts.0.description }}</p>
+                <div class="alert-time">
+                    Valid: {{ weather.alerts.0.start|date:"M d, H:i" }} to {{ weather.alerts.0.end|date:"M d, H:i" }}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="no-alerts">
+            <i class="bi bi-check-circle"></i>
+            <p>No active weather alerts for {{ city }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Main Weather Content -->
+    <div class="weather-content">
+        <!-- Left Column: Current Weather & Hourly -->
+        <div class="weather-main">
+            <!-- Current Weather -->
+            <div class="current-weather-box">
+                <h3><i class="bi bi-thermometer-half"></i> Current Weather</h3>
+                <div class="current-weather-grid">
+                    <div class="temp-section">
+                        <div class="temp-main">
+                            {{ weather.current.temp }}<span class="temp-unit">°C</span>
+                        </div>
+                        <div class="temp-feels">Feels like {{ weather.current.feels_like }}°C</div>
+                        <div class="weather-icon-large">
+                            <img src="https://openweathermap.org/img/wn/{{ weather.current.icon }}@2x.png" 
+                                 alt="{{ weather.current.description }}">
+                        </div>
+                        <div class="weather-condition">{{ weather.current.description }}</div>
+                    </div>
+                    
+                    <div class="weather-details">
+                        <div class="detail-card">
+                            <i class="bi bi-droplet detail-icon"></i>
+                            <span class="detail-label">Humidity</span>
+                            <span class="detail-value">{{ weather.current.humidity }}%</span>
+                        </div>
+                        <div class="detail-card">
+                            <i class="bi bi-wind detail-icon"></i>
+                            <span class="detail-label">Wind Speed</span>
+                            <span class="detail-value">{{ weather.current.wind_speed }} km/h</span>
+                        </div>
+                        <div class="detail-card">
+                            <i class="bi bi-eye detail-icon"></i>
+                            <span class="detail-label">Visibility</span>
+                            <span class="detail-value">{{ weather.current.visibility }} km</span>
+                        </div>
+                        <div class="detail-card">
+                            <i class="bi bi-sun detail-icon"></i>
+                            <span class="detail-label">UV Index</span>
+                            <span class="detail-value uv-{% if weather.uv_index < 3 %}low{% elif weather.uv_index < 6 %}moderate{% elif weather.uv_index < 8 %}high{% elif weather.uv_index < 11 %}very-high{% else %}extreme{% endif %}">
+                                <span class="uv-dot"></span> {{ weather.uv_index }}
+                            </span>
+                        </div>
+                        <div class="detail-card">
+                            <i class="bi bi-thermometer-high detail-icon"></i>
+                            <span class="detail-label">Pressure</span>
+                            <span class="detail-value">{{ weather.current.pressure }} hPa</span>
+                        </div>
+                        <div class="detail-card">
+                            <i class="bi bi-compass detail-icon"></i>
+                            <span class="detail-label">Wind Direction</span>
+                            <span class="detail-value">
+                                {% with deg=weather.current.wind_deg %}
+                                    {% if deg >= 337.5 or deg < 22.5 %}N
+                                    {% elif deg >= 22.5 and deg < 67.5 %}NE
+                                    {% elif deg >= 67.5 and deg < 112.5 %}E
+                                    {% elif deg >= 112.5 and deg < 157.5 %}SE
+                                    {% elif deg >= 157.5 and deg < 202.5 %}S
+                                    {% elif deg >= 202.5 and deg < 247.5 %}SW
+                                    {% elif deg >= 247.5 and deg < 292.5 %}W
+                                    {% else %}NW
+                                    {% endif %}
+                                {% endwith %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sun-times">
+                    <div class="sun-card">
+                        <i class="bi bi-sunrise"></i>
+                        <div class="sun-info">
+                            <h4>Sunrise</h4>
+                            <div class="sun-time">{{ weather.sunrise|date:"H:i" }}</div>
+                        </div>
+                    </div>
+                    <div class="sun-card">
+                        <i class="bi bi-sunset"></i>
+                        <div class="sun-info">
+                            <h4>Sunset</h4>
+                            <div class="sun-time">{{ weather.sunset|date:"H:i" }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hourly Forecast -->
+            <div class="hourly-forecast-box">
+                <h3><i class="bi bi-clock"></i> Hourly Forecast</h3>
+                <div class="hourly-scroll">
+                    {% for hour in weather.hourly %}
+                    <div class="hour-card">
+                        <div class="hour-time">{{ hour.time }}</div>
+                        <div class="hour-icon">
+                            <img src="https://openweathermap.org/img/wn/{{ hour.icon }}.png" 
+                                 alt="{{ hour.description }}">
+                        </div>
+                        <div class="hour-temp">{{ hour.temp }}°</div>
+                        <div class="hour-condition">{{ hour.description }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: 5-Day Forecast & Advisories -->
+        <div class="weather-sidebar">
+            <!-- 5-Day Forecast -->
+            <div class="daily-forecast-box">
+                <h3><i class="bi bi-calendar-week"></i> 5-Day Forecast</h3>
+                <div class="daily-list">
+                    {% for day in weather.daily %}
+                    <div class="day-item">
+                        <div class="day-info">
+                            <div class="day-name">{{ day.day }}</div>
+                            <div class="day-date">{{ day.date }}</div>
+                            <img src="https://openweathermap.org/img/wn/{{ day.icon }}.png" 
+                                 alt="{{ day.description }}" class="day-weather-icon">
+                        </div>
+                        <div class="day-temps">
+                            <span class="temp-high">{{ day.temp_max }}°</span>
+                            <span class="temp-low">{{ day.temp_min }}°</span>
+                        </div>
+                        <div class="day-precip">
+                            {% if day.precip > 0 %}
+                            {{ day.precip }}%
+                            {% else %}
+                            <span style="color: #999;">-</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Farming Advisories -->
+            <div class="advisories-box">
+                <h3><i class="bi bi-tree"></i> Farming Advisories</h3>
+                <div class="advisory-list">
+                    {% for advisory in advisories %}
+                    <div class="advisory-card advisory-{{ advisory.risk|lower }}">
+                        <div class="advisory-header">
+                            <div class="advisory-title">
+                                <span class="advisory-icon">{{ advisory.icon }}</span>
+                                <h4>{{ advisory.title }}</h4>
+                            </div>
+                            <span class="risk-badge risk-{{ advisory.risk|lower }}">{{ advisory.risk }}</span>
+                        </div>
+                        <p class="advisory-message">{{ advisory.message }}</p>
+                        <div class="advisory-footer">
+                            <i class="bi bi-clock"></i>
+                            <small>Valid until: {{ advisory.valid_until }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weather Summary -->
+    <div class="weather-summary">
+        <div class="summary-card">
+            <i class="bi bi-thermometer"></i>
+            <h4>Temperature Range</h4>
+            <p>{{ weather.daily.0.temp_min }}° - {{ weather.daily.0.temp_max }}°</p>
+        </div>
+        <div class="summary-card">
+            <i class="bi bi-cloud"></i>
+            <h4>Conditions</h4>
+            <p>{{ weather.current.description }}</p>
+        </div>
+        <div class="summary-card">
+            <i class="bi bi-wind"></i>
+            <h4>Wind</h4>
+            <p>{{ weather.current.wind_speed }} km/h</p>
+        </div>
+        <div class="summary-card">
+            <i class="bi bi-droplet"></i>
+            <h4>Humidity</h4>
+            <p>{{ weather.current.humidity }}%</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("city") || params.has("lat")) return;
+
+    if (!navigator.geolocation) {
+        console.log("Geolocation not supported");
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        function (position) {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+
+            // reload page with GPS
+            window.location.href = `?lat=${lat}&lon=${lon}`;
+        },
+        function (error) {
+            console.log("Location denied", error);
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000
+        }
+    );
+});
+</script>
+<script>
+// Search suggestions functionality
+const cityInput = document.getElementById('city-input');
+const searchSuggestions = document.getElementById('search-suggestions');
+const cityForm = document.getElementById('city-form');
+
+// Popular Indian cities for suggestions
+const popularCities = [
+    'Mumbai, IN', 'Delhi, IN', 'Bangalore, IN', 'Hyderabad, IN', 
+    'Chennai, IN', 'Kolkata, IN', 'Pune, IN', 'Ahmedabad, IN',
+    'Jaipur, IN', 'Lucknow, IN', 'Kanpur, IN', 'Nagpur, IN',
+    'Indore, IN', 'Thane, IN', 'Bhopal, IN', 'Visakhapatnam, IN',
+    'Patna, IN', 'Vadodara, IN', 'Ghaziabad, IN', 'Ludhiana, IN',
+    'Agra, IN', 'Nashik, IN', 'Faridabad, IN', 'Meerut, IN',
+    'Rajkot, IN', 'Varanasi, IN', 'Srinagar, IN', 'Aurangabad, IN',
+    'Dhanbad, IN', 'Amritsar, IN', 'Allahabad, IN', 'Ranchi, IN',
+    'Howrah, IN', 'Coimbatore, IN', 'Jabalpur, IN', 'Gwalior, IN',
+    'Vijayawada, IN', 'Jodhpur, IN', 'Madurai, IN', 'Raipur, IN',
+    'Kota, IN', 'Guwahati, IN', 'Chandigarh, IN', 'Solapur, IN'
+];
+
+let debounceTimer;
+
+cityInput.addEventListener('input', function(e) {
+    clearTimeout(debounceTimer);
+    
+    const query = e.target.value.trim();
+    if (query.length < 2) {
+        searchSuggestions.classList.remove('active');
+        searchSuggestions.innerHTML = '';
+        return;
+    }
+    
+    debounceTimer = setTimeout(() => {
+        showSuggestions(query);
+    }, 300);
+});
+
+function showSuggestions(query) {
+    const suggestions = popularCities.filter(city => 
+        city.toLowerCase().includes(query.toLowerCase())
+    ).slice(0, 8); // Show top 8 suggestions
+    
+    if (suggestions.length === 0) {
+        searchSuggestions.innerHTML = `
+            <div class="suggestion-item">
+                <i class="bi bi-search"></i>
+                <div class="suggestion-text">
+                    <strong>No cities found</strong>
+                    <small>Try another search term</small>
+                </div>
+            </div>
+        `;
+        searchSuggestions.classList.add('active');
+        return;
+    }
+    
+    let suggestionsHTML = '';
+    suggestions.forEach(city => {
+        const [cityName, country] = city.split(', ');
+        suggestionsHTML += `
+            <div class="suggestion-item" data-city="${city}">
+                <i class="bi bi-geo-alt"></i>
+                <div class="suggestion-text">
+                    <strong>${cityName}</strong>
+                    <small>${country}</small>
+                </div>
+            </div>
+        `;
+    });
+    
+    searchSuggestions.innerHTML = suggestionsHTML;
+    searchSuggestions.classList.add('active');
+    
+    // Add click event to suggestion items
+    document.querySelectorAll('.suggestion-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const selectedCity = this.getAttribute('data-city');
+            cityInput.value = selectedCity.split(',')[0]; // Show only city name
+            cityForm.submit();
+        });
+    });
+}
+
+// Hide suggestions when clicking outside
+document.addEventListener('click', function(e) {
+    if (!cityInput.contains(e.target) && !searchSuggestions.contains(e.target)) {
+        searchSuggestions.classList.remove('active');
+    }
+});
+
+// Handle Enter key
+cityInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const firstSuggestion = document.querySelector('.suggestion-item');
+        if (firstSuggestion && searchSuggestions.classList.contains('active')) {
+            const selectedCity = firstSuggestion.getAttribute('data-city');
+            cityInput.value = selectedCity.split(',')[0];
+        }
+        cityForm.submit();
+    }
+});
+
+// Auto-refresh weather every 15 minutes
+setTimeout(function() {
+    window.location.reload();
+}, 15 * 60 * 1000);
+
+// UV Index color coding
+document.querySelectorAll('.uv-low .uv-dot').forEach(el => {
+    el.style.backgroundColor = '#27ae60';
+});
+document.querySelectorAll('.uv-moderate .uv-dot').forEach(el => {
+    el.style.backgroundColor = '#f39c12';
+});
+document.querySelectorAll('.uv-high .uv-dot').forEach(el => {
+    el.style.backgroundColor = '#e74c3c';
+});
+document.querySelectorAll('.uv-very-high .uv-dot').forEach(el => {
+    el.style.backgroundColor = '#8e44ad';
+});
+document.querySelectorAll('.uv-extreme .uv-dot').forEach(el => {
+    el.style.backgroundColor = '#c0392b';
+});
+
+// Add loading animation on form submit
+cityForm.addEventListener('submit', function() {
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalHTML = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Loading...';
+    submitBtn.disabled = true;
+    
+    // Restore button after 3 seconds (in case of error)
+    setTimeout(() => {
+        submitBtn.innerHTML = originalHTML;
+        submitBtn.disabled = false;
+    }, 3000);
+});
+
+// Focus on input on page load
+window.addEventListener('load', function() {
+    cityInput.focus();
+});
+</script>
+{% endblock %}

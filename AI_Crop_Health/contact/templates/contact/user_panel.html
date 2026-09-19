@@ -1,0 +1,100 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Contact User Panel - AgriCulture{% endblock %}
+{% block body_class %}contact-user-panel-page{% endblock %}
+
+{% block content %}
+
+    <!-- Page Title -->
+    <div class="page-title dark-background" data-aos="fade" style="background-image: url('{% static 'assets/img/page-title-bg.webp' %}');">
+      <div class="container position-relative">
+        <h1>Contact User Panel</h1>
+        <nav class="breadcrumbs">
+          <ol>
+            <li><a href="{% url 'index' %}">Home</a></li>
+            <li class="current">Contact User Panel</li>
+          </ol>
+        </nav>
+      </div>
+    </div><!-- End Page Title -->
+
+    <div class="container">
+      <div class="row">
+
+        <div class="col-lg-8">
+
+          <!-- User Contacts Section -->
+          <section id="user-contacts" class="user-contacts section">
+            <div class="container">
+
+              <h3 class="section-title">Your Contact Submissions</h3>
+
+              {% for contact in user_contacts %}
+              <article class="contact-item">
+                <div class="contact-content">
+                  <h4>{{ contact.subject }}</h4>
+                  <p>{{ contact.message|truncatewords:20 }}</p>
+                  <div class="contact-meta">
+                    <span>Submitted: {{ contact.created_date|date:"M d, Y" }}</span>
+                    <span>Status: {% if contact.is_read %}Read{% else %}Unread{% endif %}</span>
+                  </div>
+                </div>
+              </article>
+              {% empty %}
+              <p>You haven't submitted any contacts yet.</p>
+              {% endfor %}
+
+            </div>
+          </section><!-- /User Contacts Section -->
+
+        </div>
+
+        <div class="col-lg-4 sidebar">
+
+          <div class="widgets-container">
+
+            <!-- User Profile Widget -->
+            <div class="user-profile-widget widget-item">
+
+              <div class="d-flex flex-column align-items-center">
+                <h4>{{ user.get_full_name|default:user.username }}</h4>
+                <p class="text-center">{{ user.email }}</p>
+              </div>
+
+            </div><!--/User Profile Widget -->
+
+            <!-- Subscription Status Widget -->
+            <div class="subscription-status-widget widget-item">
+
+              <h3 class="widget-title">Newsletter Subscription</h3>
+              {% if user_subscribed %}
+              <p>You are subscribed to our newsletter.</p>
+              <p>Subscribed on: {{ user_subscription_date|date:"M d, Y" }}</p>
+              {% else %}
+              <p>You are not subscribed to our newsletter.</p>
+              {% endif %}
+
+            </div><!--/Subscription Status Widget -->
+
+            <!-- Quick Actions Widget -->
+            <div class="quick-actions-widget widget-item">
+
+              <h3 class="widget-title">Quick Actions</h3>
+              <ul>
+                <li><a href="{% url 'contact:form' %}">Submit New Contact</a></li>
+                <li><a href="{% url 'contact:services' %}">View Services</a></li>
+                <li><a href="{% url 'contact:testimonials' %}">View Testimonials</a></li>
+                <li><a href="{% url 'admin:index' %}">Admin Panel</a></li>
+              </ul>
+
+            </div><!--/Quick Actions Widget -->
+
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+{% endblock %}

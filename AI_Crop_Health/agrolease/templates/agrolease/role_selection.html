@@ -16,12 +16,13 @@
         <li><a href="{% url 'index' %}">Home</a></li>
         <li class="current">AgroLease</li>
       </ol>
-    <a href="{% url \'agrolease:logout\' %}" class="btn btn-outline-danger ms-2">Logout</a>\1
+        </nav>
   </div>
 </div>
 
 <section class="section">
   <div class="container">
+        {% csrf_token %}
     <div class="row justify-content-center">
       <div class="col-lg-8 text-center">
         <!-- Header -->
@@ -32,6 +33,7 @@
 
         <!-- Role Selection Cards -->
         <div class="role-cards-grid">
+            {% if not available_roles or 'owner' in available_roles %}
             <!-- Land Owner Card -->
             <div class="role-card role-card-owner" onclick="selectRole('owner')">
                 <div class="role-card-content">
@@ -69,7 +71,9 @@
                     Continue as Land Owner
                 </button>
             </div>
+            {% endif %}
 
+            {% if not available_roles or 'farmer' in available_roles %}
             <!-- Farmer Card -->
             <div class="role-card role-card-farmer" onclick="selectRole('farmer')">
                 <div class="role-card-content">
@@ -107,16 +111,13 @@
                     Continue as Farmer
                 </button>
             </div>
+            {% endif %}
         </div>
 
-        <!-- Admin Access (Hidden) -->
-        <div class="admin-access-section">
-            <button onclick="selectRole('admin')" class="admin-access-button">
-                Admin Access
-            </button>
-        </div>
     </div>
 </div>
+
+</section>
 
 <script>
 function selectRole(role) {

@@ -1,0 +1,86 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Crop Information - AgriCulture{% endblock %}
+{% block body_class %}cropinfo-page{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'features/crop_info.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<!-- Page Title -->
+<div class="page-title dark-background" data-aos="fade"
+     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Crop Information</h1>
+    <p>Complete crop details to help farmers make better decisions</p>
+    <nav class="breadcrumbs">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li class="current">Crop Info</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+<!-- End Page Title -->
+
+<!-- Crop Info Section -->
+<section class="cropinfo section">
+  <div class="container">
+
+    <!-- Filters -->
+    <form method="get" class="filter-section">
+      <label>Category:</label>
+      <select name="category" onchange="this.form.submit()">
+        <option value="">All</option>
+        {% for cat in categories %}
+          <option value="{{ cat }}" {% if cat == selected_category %}selected{% endif %}>
+            {{ cat }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <label>Season:</label>
+      <select name="season" onchange="this.form.submit()">
+        <option value="">All</option>
+        {% for season in seasons %}
+          <option value="{{ season }}" {% if season == selected_season %}selected{% endif %}>
+            {{ season }}
+          </option>
+        {% endfor %}
+      </select>
+    </form>
+
+    <!-- Crop Cards -->
+    <div class="row">
+      {% if crops %}
+        {% for crop in crops %}
+        <div class="col-lg-4 col-md-6">
+          <div class="crop-card">
+            <img src="{{ crop.crop_image.url }}" alt="{{ crop.crop_name }}">
+            <div class="card-body">
+              <h5 class="card-title">{{ crop.crop_name }}</h5>
+                <p class="card-text mb-2"><strong>Category:</strong> <span class="text-primary">{{ crop.category }}</span></p>
+                <p class="card-text mb-3"><strong>Season:</strong> <span class="text-success">{{ crop.season }}</span></p>
+              <p class="card-text"><strong>Soil:</strong> {{ crop.soil_type }}</p>
+              <a href="{% url 'features:crop_detail' crop.id %}" class="btn btn-success btn-sm">
+                View Full Details
+              </a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <h3>No crop information available</h3>
+          <p>Please check back later.</p>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+</section>
+
+{% endblock %}

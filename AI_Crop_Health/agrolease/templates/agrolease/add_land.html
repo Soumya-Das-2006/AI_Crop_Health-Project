@@ -5,263 +5,140 @@
 {% block body_class %}agrolease-add-land-page{% endblock %}
 
 {% block content %}
-
-<div class="page-title dark-background"
-     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
   <div class="container position-relative">
     <h1>Add Agricultural Land</h1>
     <p>List your land for farming lease</p>
-    <nav class="breadcrumbs">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
       <ol>
         <li><a href="{% url 'index' %}">Home</a></li>
-        <li><a href="/">AgroLease</a></li>
+        <li><a href="{% url 'agrolease:role_selection' %}">AgroLease</a></li>
         <li><a href="{% url 'agrolease:owner_dashboard' %}">Owner Dashboard</a></li>
-        <li class="current">Add Land</li>
+        <li class="current" aria-current="page">Add Land</li>
       </ol>
-    <a href="{% url \'agrolease:logout\' %}" class="btn btn-outline-danger ms-2">Logout</a>\1
+    </nav>
   </div>
 </div>
 
-<section class="section">
+<section class="agrolease-form-section">
   <div class="container">
-    <div class="row justify-content-center">
-      <div class="col-lg-8">
-        <!-- Header -->
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-800">Add Agricultural Land</h1>
-            <p class="text-gray-600 mt-2">List your land for farming lease</p>
-        </div>
+    {% with owner_nav_page='add_land' %}{% include 'agrolease/owner_nav.html' %}{% endwith %}
+    <div class="agrolease-form-intro">
+      <div>
+        <p class="agrolease-eyebrow">New listing</p>
+        <h2>Tell farmers about your land</h2>
+        <p>Share accurate details so the right farmers can discover your parcel.</p>
+      </div>
+      <span class="agrolease-required-note"><span>*</span> Required fields</span>
+    </div>
 
-        <!-- Form -->
-        <div class="bg-white rounded-lg shadow-lg p-6">
-            
-{% if messages %}
-<div class="messages mb-4">
-    {% for message in messages %}
-    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+    {% if messages %}
+    <div class="agrolease-messages agrolease-form-message" aria-live="polite">
+      {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
         {{ message }}
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+      {% endfor %}
     </div>
-    {% endfor %}
-</div>
-{% endif %}
-\1
-                {% csrf_token %}
+    {% endif %}
 
-                <!-- Location -->
-                <div>
-                    <label for="location" class="block text-sm font-medium text-gray-700 mb-1">
-                        Location *
-                    </label>
-                    <input
-                        type="text"
-                        id="location"
-                        name="location"
-                        required
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        placeholder="Village, District, State"
-                    >
-                </div>
+    <form method="post" enctype="multipart/form-data" class="agrolease-land-form">
+      {% csrf_token %}
+      <div class="agrolease-form-layout">
+        <div class="agrolease-form-main">
+          <section class="agrolease-form-card">
+            <div class="agrolease-form-card-heading"><span>01</span><div><h3>Land details</h3><p>Where is your parcel and what can it support?</p></div></div>
+            <div class="agrolease-form-fields">
+              <div class="agrolease-field agrolease-field-full">
+                <label for="location">Location <span>*</span></label>
+                <input type="text" id="location" name="location" required placeholder="Village, District, State" autocomplete="address-level2">
+              </div>
+              <div class="agrolease-field">
+                <label for="size">Land size <span>*</span></label>
+                <div class="agrolease-input-with-suffix"><input type="number" id="size" name="size" required min="0.01" step="0.01" placeholder="e.g. 5"><span>acres</span></div>
+              </div>
+              <div class="agrolease-field">
+                <label for="soil_type">Soil type <span>*</span></label>
+                <select id="soil_type" name="soil_type" required>
+                  <option value="">Select soil type</option>
+                  <option value="red">Red soil</option><option value="black">Black soil</option><option value="alluvial">Alluvial soil</option><option value="laterite">Laterite soil</option><option value="sandy">Sandy soil</option><option value="clay">Clay soil</option>
+                </select>
+              </div>
+              <div class="agrolease-field">
+                <label for="water_source">Water source <span>*</span></label>
+                <select id="water_source" name="water_source" required>
+                  <option value="">Select water source</option>
+                  <option value="well">Well</option><option value="borewell">Borewell</option><option value="canal">Canal</option><option value="river">River</option><option value="rainwater">Rainwater</option><option value="tank">Tank</option>
+                </select>
+              </div>
+              <div class="agrolease-field agrolease-field-full">
+                <label for="suitable_crops">Suitable crops <span>*</span></label>
+                <input type="text" id="suitable_crops" name="suitable_crops" required placeholder="Rice, sugarcane, vegetables">
+              </div>
+            </div>
+          </section>
 
-                <!-- Land Size -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label for="size" class="block text-sm font-medium text-gray-700 mb-1">
-                            Land Size *
-                        </label>
-                        <input
-                            type="text"
-                            id="size"
-                            name="size"
-                            required
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                            placeholder="e.g., 5 acres"
-                        >
-                    </div>
+          <section class="agrolease-form-card">
+            <div class="agrolease-form-card-heading"><span>02</span><div><h3>Lease terms</h3><p>Set expectations for interested farmers.</p></div></div>
+            <div class="agrolease-form-fields">
+              <div class="agrolease-field">
+                <label for="rent_amount">Rent amount <span>*</span></label>
+                <div class="agrolease-input-with-prefix"><span>₹</span><input type="number" id="rent_amount" name="rent_amount" required min="0" step="0.01" placeholder="25000"></div>
+              </div>
+              <div class="agrolease-field">
+                <label for="rent_period">Payment period</label>
+                <select id="rent_period" name="rent_period"><option value="season">Per season</option><option value="year">Per year</option><option value="month">Per month</option></select>
+              </div>
+              <div class="agrolease-field">
+                <label for="duration">Lease duration <span>*</span></label>
+                <div class="agrolease-input-with-suffix"><input type="number" id="duration" name="duration" required min="1" step="1" placeholder="6"><span>months</span></div>
+              </div>
+            </div>
+          </section>
 
-                    <div>
-                        <label for="size_unit" class="block text-sm font-medium text-gray-700 mb-1">
-                            Unit
-                        </label>
-                        <select
-                            id="size_unit"
-                            name="size_unit"
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        >
-                            <option value="acres">Acres</option>
-                            <option value="hectares">Hectares</option>
-                            <option value="sqft">Square Feet</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Soil Type -->
-                <div>
-                    <label for="soil_type" class="block text-sm font-medium text-gray-700 mb-1">
-                        Soil Type *
-                    </label>
-                    <select
-                        id="soil_type"
-                        name="soil_type"
-                        required
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                    >
-                        <option value="">Select soil type</option>
-                        <option value="red">Red Soil</option>
-                        <option value="black">Black Soil</option>
-                        <option value="alluvial">Alluvial Soil</option>
-                        <option value="laterite">Laterite Soil</option>
-                        <option value="sandy">Sandy Soil</option>
-                        <option value="clay">Clay Soil</option>
-                    </select>
-                </div>
-
-                <!-- Water Source -->
-                <div>
-                    <label for="water_source" class="block text-sm font-medium text-gray-700 mb-1">
-                        Water Source *
-                    </label>
-                    <select
-                        id="water_source"
-                        name="water_source"
-                        required
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                    >
-                        <option value="">Select water source</option>
-                        <option value="well">Well</option>
-                        <option value="borewell">Borewell</option>
-                        <option value="canal">Canal</option>
-                        <option value="river">River</option>
-                        <option value="rainwater">Rainwater</option>
-                        <option value="tank">Tank</option>
-                    </select>
-                </div>
-
-                <!-- Suitable Crops -->
-                <div>
-                    <label for="suitable_crops" class="block text-sm font-medium text-gray-700 mb-1">
-                        Suitable Crops *
-                    </label>
-                    <input
-                        type="text"
-                        id="suitable_crops"
-                        name="suitable_crops"
-                        required
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        placeholder="e.g., Rice, Sugarcane, Vegetables"
-                    >
-                </div>
-
-                <!-- Rent Details -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label for="rent_amount" class="block text-sm font-medium text-gray-700 mb-1">
-                            Rent Amount *
-                        </label>
-                        <input
-                            type="number"
-                            id="rent_amount"
-                            name="rent_amount"
-                            required
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                            placeholder="25000"
-                        >
-                    </div>
-
-                    <div>
-                        <label for="rent_period" class="block text-sm font-medium text-gray-700 mb-1">
-                            Per Period
-                        </label>
-                        <select
-                            id="rent_period"
-                            name="rent_period"
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        >
-                            <option value="season">Season</option>
-                            <option value="year">Year</option>
-                            <option value="month">Month</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label for="currency" class="block text-sm font-medium text-gray-700 mb-1">
-                            Currency
-                        </label>
-                        <select
-                            id="currency"
-                            name="currency"
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        >
-                            <option value="INR">INR (₹)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Lease Duration -->
-                <div>
-                    <label for="lease_duration" class="block text-sm font-medium text-gray-700 mb-1">
-                        Lease Duration *
-                    </label>
-                    <input
-                        type="text"
-                        id="lease_duration"
-                        name="lease_duration"
-                        required
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        placeholder="e.g., 6 months, 1 year"
-                    >
-                </div>
-
-                <!-- Land Images -->
-                <div>
-                    <label for="images" class="block text-sm font-medium text-gray-700 mb-1">
-                        Land Images
-                    </label>
-                    <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
-                        <div class="space-y-1 text-center">
-                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                            </svg>
-                            <div class="flex text-sm text-gray-600">
-                                <label for="images" class="relative cursor-pointer bg-white rounded-md font-medium text-green-600 hover:text-green-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-green-500">
-                                    <span>Upload images</span>
-                                    <input id="images" name="images" type="file" multiple class="sr-only" accept="image/*">
-                                </label>
-                                <p class="pl-1">or drag and drop</p>
-                            </div>
-                            <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB each</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Additional Details -->
-                <div>
-                    <label for="additional_details" class="block text-sm font-medium text-gray-700 mb-1">
-                        Additional Details
-                    </label>
-                    <textarea
-                        id="additional_details"
-                        name="additional_details"
-                        rows="3"
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        placeholder="Any additional information about the land..."
-                    ></textarea>
-                </div>
-
-                <!-- Submit -->
-                <div class="flex justify-end space-x-3">
-                    <a href="{% url 'agrolease:owner_dashboard' %}" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition-colors">
-                        Cancel
-                    </a>
-                    <button
-                        type="submit"
-                        class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium"
-                    >
-                        Add Land
-                    </button>
-                </div>
-            </form>
+          <section class="agrolease-form-card">
+            <div class="agrolease-form-card-heading"><span>03</span><div><h3>Land photos</h3><p>Help farmers understand the parcel at a glance.</p></div></div>
+            <label for="images" class="agrolease-upload-zone"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i><strong>Upload a land image</strong><span>PNG, JPG or WEBP up to 10MB</span><span id="land-image-status" class="agrolease-upload-status">No image selected</span><img id="land-image-preview" class="agrolease-upload-preview" alt="Selected land preview"><input id="images" name="images" type="file" accept="image/png,image/jpeg,image/webp"></label>
+          </section>
         </div>
-    </div>
-</div>
+
+        <aside class="agrolease-form-aside">
+          <div class="agrolease-form-card agrolease-guidance-card">
+            <i class="bi bi-lightbulb" aria-hidden="true"></i>
+            <h3>Listing tips</h3>
+            <ul><li>Use the nearest village or landmark.</li><li>Choose the primary soil and water source.</li><li>Add clear photos taken in daylight.</li></ul>
+          </div>
+          <div class="agrolease-form-actions"><a href="{% url 'agrolease:owner_dashboard' %}" class="agrolease-secondary-action">Cancel</a><button type="submit" class="agrolease-primary-action"><i class="bi bi-send" aria-hidden="true"></i> Submit for review</button></div>
+        </aside>
+      </div>
+    </form>
+  </div>
+</section>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const input = document.getElementById('images');
+    const status = document.getElementById('land-image-status');
+    const preview = document.getElementById('land-image-preview');
+    if (!input || !status || !preview) return;
+
+    input.addEventListener('change', function () {
+      const file = input.files[0];
+      if (!file) {
+        status.textContent = 'No image selected';
+        preview.hidden = true;
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        input.value = '';
+        status.textContent = 'Image is larger than 10 MB';
+        preview.hidden = true;
+        return;
+      }
+      status.textContent = file.name;
+      preview.src = URL.createObjectURL(file);
+      preview.hidden = false;
+    });
+  });
+</script>
 {% endblock %}

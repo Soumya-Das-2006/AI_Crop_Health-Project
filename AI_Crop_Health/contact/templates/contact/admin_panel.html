@@ -1,0 +1,272 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Contact Admin Panel - AgriCulture{% endblock %}
+{% block body_class %}contact-admin-panel-page{% endblock %}
+
+{% block content %}
+
+    <!-- Page Title -->
+    <div class="page-title dark-background" data-aos="fade" style="background-image: url('{% static 'assets/img/page-title-bg.webp' %}');">
+      <div class="container position-relative">
+        <h1>Contact Admin Panel</h1>
+        <nav class="breadcrumbs">
+          <ol>
+            <li><a href="{% url 'index' %}">Home</a></li>
+            <li class="current">Contact Admin Panel</li>
+          </ol>
+        </nav>
+      </div>
+    </div><!-- End Page Title -->
+
+    <div class="container">
+      <div class="row">
+
+        <div class="col-lg-8">
+
+          <!-- Contact Stats Section -->
+          <section id="contact-stats" class="contact-stats section">
+            <div class="container">
+
+              <h3 class="section-title">Contact Dashboard Overview</h3>
+
+              <div class="row">
+                <div class="col-md-3">
+                  <div class="stat-card">
+                    <h4>{{ total_contacts }}</h4>
+                    <p>Total Contacts</p>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="stat-card">
+                    <h4>{{ unread_contacts }}</h4>
+                    <p>Unread Contacts</p>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="stat-card">
+                    <h4>{{ total_services }}</h4>
+                    <p>Total Services</p>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="stat-card">
+                    <h4>{{ total_testimonials }}</h4>
+                    <p>Total Testimonials</p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </section><!-- /Contact Stats Section -->
+
+          <!-- Recent Contacts Section -->
+          <section id="recent-contacts" class="recent-contacts section">
+            <div class="container">
+
+              <h3 class="section-title">Recent Contacts</h3>
+
+              {% for contact in recent_contacts %}
+              <article class="contact-item">
+                <div class="contact-content">
+                  <h4>{{ contact.subject }}</h4>
+                  <p>From: {{ contact.name }} ({{ contact.email }})</p>
+                  <p>{{ contact.message|truncatewords:20 }}</p>
+                  <div class="contact-meta">
+                    <span>{{ contact.created_date|date:"M d, Y" }}</span>
+                    <span>Status: {% if contact.is_read %}Read{% else %}Unread{% endif %}</span>
+                  </div>
+                </div>
+              </article>
+              {% endfor %}
+
+            </div>
+          </section><!-- /Recent Contacts Section -->
+
+          <!-- Services Section -->
+          <section id="services" class="services section">
+            <div class="container">
+
+              <h3 class="section-title">Services</h3>
+
+              {% for service in services %}
+              <article class="service-item">
+                <div class="service-content">
+                  <h4>{{ service.title }}</h4>
+                  <p>{{ service.description|truncatewords:20 }}</p>
+                  <div class="service-meta">
+                    <span>Order: {{ service.order }}</span>
+                    <span>Status: {% if service.is_active %}Active{% else %}Inactive{% endif %}</span>
+                  </div>
+                </div>
+              </article>
+              {% endfor %}
+
+            </div>
+          </section><!-- /Services Section -->
+
+          <!-- Testimonials Section -->
+          <section id="testimonials" class="testimonials section">
+            <div class="container">
+
+              <h3 class="section-title">Testimonials</h3>
+
+              {% for testimonial in testimonials %}
+              <article class="testimonial-item">
+                <div class="testimonial-content">
+                  <h4>{{ testimonial.name }}</h4>
+                  <p>{{ testimonial.message|truncatewords:20 }}</p>
+                  <div class="testimonial-meta">
+                    <span>Status: {% if testimonial.is_active %}Active{% else %}Inactive{% endif %}</span>
+                  </div>
+                </div>
+              </article>
+              {% endfor %}
+
+            </div>
+          </section><!-- /Testimonials Section -->
+
+          <!-- Biodegradable Companies Section -->
+          <section id="biodegradable-companies" class="biodegradable-companies section">
+            <div class="container">
+
+              <h3 class="section-title">Verified Biodegradable Companies</h3>
+
+              <div class="row">
+                {% for company in companies %}
+                <div class="col-md-6">
+                  <article class="company-item">
+                    <div class="company-content">
+                      <h4>{{ company.name }}</h4>
+                      <p>{{ company.description|truncatewords:15 }}</p>
+                      <p><strong>Accepts:</strong> {{ company.materials_accepted }}</p>
+                      <div class="company-benefits">
+                        <strong>Benefits:</strong> {{ company.benefits_offered|truncatewords:10 }}
+                      </div>
+                      <div class="company-meta">
+                        <span>Email: {{ company.email }}</span>
+                        {% if company.phone %}
+                        <span>Phone: {{ company.phone }}</span>
+                        {% endif %}
+                        <span>Status: {% if company.is_active %}Active{% else %}Inactive{% endif %}</span>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+                {% endfor %}
+              </div>
+
+            </div>
+          </section><!-- /Biodegradable Companies Section -->
+
+          <!-- Company Invitation Section -->
+          <section id="company-invitation" class="company-invitation section">
+            <div class="container">
+
+              <h3 class="section-title">Invite New Biodegradable Company</h3>
+
+              <div class="invite-form-container">
+                <form id="invite-form">
+                  <div class="form-group">
+                    <label for="company-name">Company Name</label>
+                    <input type="text" id="company-name" name="companyName" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="company-email">Company Email</label>
+                    <input type="email" id="company-email" name="companyEmail" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="material-interest">Material Interest</label>
+                    <input type="text" id="material-interest" name="materialInterest" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="invite-message">Message</label>
+                    <textarea id="invite-message" name="message" rows="4" required>Dear [Company Name],
+
+We are excited to invite your biodegradable company to collaborate with AgriCulture platform. We have farmers ready to provide agricultural waste for your sustainable solutions.
+
+Let's work together to create a circular bio-economy and reduce environmental impact.
+
+Best regards,
+AgriCulture Team</textarea>
+                  </div>
+                  <button type="submit" class="btn btn-primary">Generate Email</button>
+                </form>
+                <div id="email-preview" class="email-preview" style="display: none;">
+                  <h4>Generated Email Preview</h4>
+                  <div id="email-content"></div>
+                  <button id="send-email-btn" class="btn btn-success" style="margin-top: 1rem;">Send Email</button>
+                </div>
+              </div>
+
+            </div>
+          </section><!-- /Company Invitation Section -->
+
+        </div>
+
+        <div class="col-lg-4 sidebar">
+
+          <div class="widgets-container">
+
+            <!-- Quick Actions Widget -->
+            <div class="quick-actions-widget widget-item">
+
+              <h3 class="widget-title">Quick Actions</h3>
+              <ul>
+                <li><a href="{% url 'admin:contact_contact_add' %}">Add New Contact</a></li>
+                <li><a href="{% url 'admin:contact_service_add' %}">Add New Service</a></li>
+                <li><a href="{% url 'admin:contact_testimonial_add' %}">Add New Testimonial</a></li>
+                <li><a href="{% url 'admin:contact_newslettersubscriber_changelist' %}">Manage Subscribers</a></li>
+                <li><a href="{% url 'admin:index' %}">Django Admin</a></li>
+              </ul>
+
+            </div><!--/Quick Actions Widget -->
+
+            <!-- Recent Activity Widget -->
+            <div class="recent-activity-widget widget-item">
+
+              <h3 class="widget-title">Recent Activity</h3>
+              <div class="activity-list">
+                {% for contact in recent_contacts %}
+                <div class="activity-item">
+                  <small>New contact: {{ contact.subject|truncatechars:30 }}</small>
+                  <br><small class="text-muted">{{ contact.created_date|timesince }} ago</small>
+                </div>
+                {% endfor %}
+                {% for service in services|slice:":2" %}
+                <div class="activity-item">
+                  <small>Service: {{ service.title|truncatechars:25 }}</small>
+                  <br><small class="text-muted">{{ service.created_at|timesince }} ago</small>
+                </div>
+                {% endfor %}
+                {% for testimonial in testimonials|slice:":2" %}
+                <div class="activity-item">
+                  <small>Testimonial: {{ testimonial.name|truncatechars:25 }}</small>
+                  <br><small class="text-muted">{{ testimonial.created_at|timesince }} ago</small>
+                </div>
+                {% endfor %}
+              </div>
+
+            </div><!--/Recent Activity Widget -->
+
+            <!-- System Stats Widget -->
+            <div class="system-stats-widget widget-item">
+
+              <h3 class="widget-title">Contact Stats</h3>
+              <ul class="stats-list">
+                <li><strong>{{ total_contacts }}</strong> Total Contacts</li>
+                <li><strong>{{ unread_contacts }}</strong> Unread Contacts</li>
+                <li><strong>{{ total_services }}</strong> Total Services</li>
+                <li><strong>{{ total_testimonials }}</strong> Total Testimonials</li>
+              </ul>
+
+            </div><!--/System Stats Widget -->
+
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+{% endblock %}

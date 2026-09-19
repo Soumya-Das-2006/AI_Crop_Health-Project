@@ -1,0 +1,579 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Biodegradable Waste Solutions - AgriCulture{% endblock %}
+{% block body_class %}biodegradable-page{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'assets/css/main.css' %}" rel="stylesheet">
+<style>
+:root {
+  --primary-green: #116530;
+  --dark-accent: #2d465e;
+  --light-bg: #f9f9f9;
+  --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --border-radius: 8px;
+}
+
+.biodegradable-page {
+  background-color: var(--light-bg);
+}
+
+.hero-section {
+  background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-accent) 100%);
+  color: white;
+  padding: 80px 0;
+  text-align: center;
+}
+
+.hero-section h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.hero-section p {
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+}
+
+.btn-primary-custom {
+  background-color: var(--primary-green);
+  border: none;
+  padding: 12px 30px;
+  border-radius: var(--border-radius);
+  color: white;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.btn-primary-custom:hover {
+  background-color: #0d4a24;
+  transform: translateY(-2px);
+}
+
+.cards-section {
+  padding: 60px 0;
+  background-color: white;
+}
+
+.card-custom {
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  padding: 30px;
+  text-align: center;
+  transition: all 0.3s ease;
+  height: 100%;
+}
+
+.card-custom:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+.card-custom i {
+  font-size: 3rem;
+  color: var(--primary-green);
+  margin-bottom: 1rem;
+}
+
+.card-custom h3 {
+  color: var(--dark-accent);
+  margin-bottom: 1rem;
+}
+
+.card-custom p {
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+.form-section {
+  padding: 80px 0;
+  background-color: var(--light-bg);
+}
+
+.form-container {
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.form-content {
+  display: flex;
+  min-height: 600px;
+}
+
+.form-left {
+  flex: 1;
+  padding: 50px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.form-right {
+  flex: 1;
+  background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-accent) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.form-right::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('{% static "assets/img/upload-img.jpg" %}') center/cover;
+  opacity: 0.3;
+}
+
+.form-right-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  color: white;
+  padding: 40px;
+}
+
+.form-right-content h3 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  font-weight: 700;
+}
+
+.form-right-content p {
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  opacity: 0.9;
+}
+
+.form-card h2 {
+  color: var(--dark-accent);
+  margin-bottom: 2rem;
+  text-align: center;
+  font-size: 2.2rem;
+  font-weight: 600;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--dark-accent);
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary-green);
+}
+
+.companies-section {
+  padding: 60px 0;
+  background-color: white;
+}
+
+.company-card {
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  padding: 30px;
+  margin-bottom: 30px;
+  transition: all 0.3s ease;
+}
+
+.company-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+.company-card h3 {
+  color: var(--dark-accent);
+  margin-bottom: 1rem;
+}
+
+.company-card p {
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.company-card .benefits {
+  background-color: var(--light-bg);
+  padding: 15px;
+  border-radius: var(--border-radius);
+  margin-bottom: 1.5rem;
+}
+
+.btn-secondary-custom {
+  background-color: var(--dark-accent);
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--border-radius);
+  color: white;
+  text-decoration: none;
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+.btn-secondary-custom:hover {
+  background-color: #1e3447;
+  transform: translateY(-2px);
+}
+
+.invite-section {
+  padding: 60px 0;
+  background-color: var(--light-bg);
+}
+
+.invite-card {
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  padding: 40px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.invite-card h2 {
+  color: var(--dark-accent);
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.email-preview {
+  background-color: var(--light-bg);
+  border: 1px solid #ddd;
+  border-radius: var(--border-radius);
+  padding: 20px;
+  margin-top: 2rem;
+  display: none;
+}
+
+.email-preview h3 {
+  color: var(--dark-accent);
+  margin-bottom: 1rem;
+}
+
+.trust-section {
+  padding: 60px 0;
+  background-color: white;
+  text-align: center;
+}
+
+.trust-section h2 {
+  color: var(--dark-accent);
+  margin-bottom: 3rem;
+}
+
+.trust-item {
+  margin-bottom: 2rem;
+}
+
+.trust-item i {
+  font-size: 3rem;
+  color: var(--primary-green);
+  margin-bottom: 1rem;
+}
+
+.trust-item h3 {
+  color: var(--dark-accent);
+  margin-bottom: 1rem;
+}
+
+.trust-item p {
+  color: #666;
+}
+
+@media (max-width: 768px) {
+  .hero-section h1 {
+    font-size: 2rem;
+  }
+  .hero-section p {
+    font-size: 1rem;
+  }
+  .form-card,
+  .invite-card {
+    padding: 20px;
+  }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ================= PAGE TITLE ================= -->
+<div class="page-title dark-background"
+     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Biodegradable Waste Solutions</h1>
+    <p>Turn crop loss and agricultural waste into income through biodegradable and compostable industry collaboration.</p>
+    <nav class="breadcrumbs">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li class="current">Biodegradable</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+
+<!-- ================= CARDS SECTION ================= -->
+<section class="cards-section">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card-custom">
+          <i class="fas fa-seedling"></i>
+          <h3>Government Schemes</h3>
+          <p>Explore various government initiatives and schemes for sustainable farming and waste management.</p>
+          <a href="{% url 'features:schemes_home' %}" class="btn-secondary-custom">Learn More</a>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card-custom">
+          <i class="fas fa-recycle"></i>
+          <h3>Replantation Solutions</h3>
+          <p>Get AI-powered crop recommendations to optimize your farming practices and reduce waste.</p>
+          <a href="{% url 'detection:crop_recommendation' %}" class="btn-secondary-custom">Get Recommendations</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FARMER WASTE SUBMISSION FORM ================= -->
+<section id="waste-form-section" class="form-section">
+  <div class="container">
+    <div class="form-container">
+      <div class="form-content">
+        <div class="form-left">
+          <h2>Submit Your Crop Waste</h2>
+          <form id="waste-form" action="{% url 'contact:submit_waste' %}" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-group">
+              <label for="farmer-name">Farmer Name</label>
+              <input type="text" id="farmer-name" name="farmerName" required>
+            </div>
+            <div class="form-group">
+              <label for="mobile">Mobile Number</label>
+              <input type="tel" id="mobile" name="mobileNumber" required>
+            </div>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label for="village">Village</label>
+                  <input type="text" id="village" name="village" required>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label for="district">District</label>
+                  <input type="text" id="district" name="district" required>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label for="state">State</label>
+                  <input type="text" id="state" name="state" required>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="crop-type">Crop Type</label>
+              <input type="text" id="crop-type" name="cropType" required>
+            </div>
+            <div class="form-group">
+              <label for="waste-type">Type of Waste</label>
+              <select id="waste-type" name="wasteType" required>
+                <option value="">Select waste type</option>
+                <option value="stubble">Stubble</option>
+                <option value="damaged-crop">Damaged Crop</option>
+                <option value="husks">Husks</option>
+                <option value="biomass">Biomass</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="quantity">Estimated Quantity</label>
+              <input type="text" id="quantity" name="quantity" placeholder="e.g., 100 kg or 5 tons" required>
+            </div>
+            <div class="form-group">
+              <label for="image">Upload Image (optional)</label>
+              <input type="file" id="image" name="image" accept="image/*">
+            </div>
+            <div class="form-group">
+              <label for="notes">Additional Notes</label>
+              <textarea id="notes" name="notes" rows="4"></textarea>
+            </div>
+            <button type="submit" class="btn-primary-custom" style="width: 100%;">Submit Waste</button>
+          </form>
+          <div id="form-message" style="margin-top: 20px; display: none;"></div>
+        </div>
+        <div class="form-right">
+          <div class="form-right-content">
+            <h3 style="color: yellow;">Transform Waste into Wealth</h3>
+            <p>Connect with biodegradable companies and turn your agricultural waste into sustainable income opportunities.</p>
+            <div style="margin-top: 2rem;">
+              <i class="fas fa-seedling" style="font-size: 3rem; color: rgba(255,255,255,0.8); margin-bottom: 1rem;"></i>
+              <p style="font-size: 0.9rem; opacity: 0.8;">Join thousands of farmers already benefiting from our waste-to-wealth program</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- ================= TRUST & IMPACT SECTION ================= -->
+<section class="trust-section">
+  <div class="container">
+    <h2>Environmental Impact & Benefits</h2>
+    <div class="row">
+      <div class="col-md-4">
+        <div class="trust-item">
+          <i class="fas fa-leaf"></i>
+          <h3>Environmental Benefits</h3>
+          <p>Reduce greenhouse gas emissions and promote sustainable waste management practices.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="trust-item">
+          <i class="fas fa-hand-holding-usd"></i>
+          <h3>Farmer Income Support</h3>
+          <p>Convert agricultural waste into additional income streams for farmers.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="trust-item">
+          <i class="fas fa-fire-extinguisher"></i>
+          <h3>Reduce Stubble Burning</h3>
+          <p>Prevent harmful stubble burning and promote eco-friendly waste disposal.</p>
+        </div>
+      </div>
+    </div>
+    <div class="row" style="margin-top: 2rem;">
+      <div class="col-md-12">
+        <div class="trust-item">
+          <i class="fas fa-recycle"></i>
+          <h3>Circular Bio-Economy</h3>
+          <p>Create a sustainable cycle where waste becomes a valuable resource for biodegradable products.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Handle waste form submission
+document.getElementById('waste-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const formData = new FormData(this);
+  const messageDiv = document.getElementById('form-message');
+
+  // Client-side validation
+  const requiredFields = ['farmerName', 'mobileNumber', 'village', 'district', 'state', 'cropType', 'wasteType', 'quantity'];
+  let isValid = true;
+  requiredFields.forEach(field => {
+    if (!formData.get(field)) {
+      isValid = false;
+    }
+  });
+
+  if (!isValid) {
+    messageDiv.style.display = 'block';
+    messageDiv.style.color = 'red';
+    messageDiv.textContent = 'Please fill in all required fields.';
+    return;
+  }
+
+  // API call to submit waste
+  fetch('{% url "contact:submit_waste" %}', {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    messageDiv.style.display = 'block';
+    if (data.status === 'success') {
+      messageDiv.style.color = 'green';
+      messageDiv.textContent = data.message;
+      this.reset();
+    } else {
+      messageDiv.style.color = 'red';
+      messageDiv.textContent = data.message;
+    }
+  })
+  .catch(error => {
+    messageDiv.style.display = 'block';
+    messageDiv.style.color = 'red';
+    messageDiv.textContent = 'An error occurred. Please try again later.';
+    console.error('Error:', error);
+  });
+});
+
+// Handle invite form submission
+document.getElementById('invite-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const formData = new FormData(this);
+  const companyName = formData.get('companyName');
+  const companyEmail = formData.get('companyEmail');
+  const materialInterest = formData.get('materialInterest');
+  const message = formData.get('message');
+
+  // API call to generate email
+  fetch('{% url "contact:send_company_email" %}', {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.status === 'success') {
+      // Display email preview
+      document.getElementById('email-content').textContent = data.email_data.body;
+      document.getElementById('email-preview').style.display = 'block';
+
+      // Handle send email
+      document.getElementById('send-email-btn').addEventListener('click', function() {
+        const mailtoLink = `mailto:${data.email_data.to}?subject=${encodeURIComponent(data.email_data.subject)}&body=${encodeURIComponent(data.email_data.body)}`;
+        window.location.href = mailtoLink;
+      });
+    } else {
+      alert('Error: ' + data.message);
+    }
+  })
+  .catch(error => {
+    alert('An error occurred. Please try again later.');
+    console.error('Error:', error);
+  });
+});
+</script>
+{% endblock %}

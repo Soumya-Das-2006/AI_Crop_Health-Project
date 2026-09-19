@@ -1,0 +1,39 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Farmer Request - AgriCulture{% endblock %}
+{% block body_class %}agrolease-owner-request-detail-page{% endblock %}
+
+{% block content %}
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Farmer request</h1>
+    <p>Review the farmer and lease details before making a decision.</p>
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="{% url 'index' %}">Home</a></li><li><a href="{% url 'agrolease:owner_requests' %}">Lease Requests</a></li><li class="current" aria-current="page">Request details</li></ol></nav>
+  </div>
+</div>
+<section class="agrolease-dashboard-section">
+  <div class="container">
+    {% with owner_nav_page='requests' %}{% include 'agrolease/owner_nav.html' %}{% endwith %}
+    {% if messages %}<div class="agrolease-messages" aria-live="polite">{% for message in messages %}<div class="alert alert-{{ message.tags }}" role="alert">{{ message }}</div>{% endfor %}</div>{% endif %}
+    <section class="agrolease-panel agrolease-requests-panel">
+      <div class="agrolease-panel-heading"><div><p class="agrolease-eyebrow">Farmer details</p><h2>{{ lease_request.farmer.get_full_name|default:lease_request.farmer.username }}</h2><p class="agrolease-detail-subtitle"><i class="bi bi-calendar3" aria-hidden="true"></i> Requested {{ lease_request.request_date|date:"d M Y, g:i A" }}</p></div><span class="agrolease-request-status agrolease-request-status-{{ lease_request.status }}">{{ lease_request.get_status_display }}</span></div>
+      <div class="agrolease-request-detail-grid">
+        <div><strong>Email</strong><span>{{ lease_request.farmer.email|default:"Not provided" }}</span></div>
+        <div><strong>Phone</strong><span>{{ lease_request.farmer.agroprofile.phone_number|default:"Not provided" }}</span></div>
+        <div><strong>Land</strong><span>{{ lease_request.land.location }}</span></div>
+        <div><strong>Size</strong><span>{{ lease_request.land.size_acres }} acres</span></div>
+        <div><strong>Rent</strong><span>₹{{ lease_request.land.rent_amount|floatformat:0 }} {{ lease_request.land.rent_frequency }}</span></div>
+        <div><strong>Duration</strong><span>{{ lease_request.land.duration_months }} month{{ lease_request.land.duration_months|pluralize }}</span></div>
+      </div>
+      <div class="agrolease-request-message"><strong>Application message</strong><p>{{ lease_request.message|linebreaksbr }}</p></div>
+      <div class="agrolease-request-detail-actions"><a href="{% url 'agrolease:lease_chat' lease_request.id %}" class="agrolease-secondary-action"><i class="bi bi-chat-dots" aria-hidden="true"></i> Chat with farmer</a>
+      {% if lease_request.status == 'pending' %}
+        <form method="post" action="{% url 'agrolease:approve_lease_request' lease_request.id %}">{% csrf_token %}<button type="submit" class="agrolease-primary-action"><i class="bi bi-check2-circle" aria-hidden="true"></i> Approve farmer</button></form>
+        <form method="post" action="{% url 'agrolease:reject_lease_request' lease_request.id %}">{% csrf_token %}<button type="submit" class="agrolease-secondary-action"><i class="bi bi-x-circle" aria-hidden="true"></i> Reject request</button></form>
+      {% endif %}
+      {% if lease_request.status == 'owner_approved' %}<span class="agrolease-review-note"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Waiting for AgroLease admin review</span>{% elif lease_request.status == 'approved' %}<span class="agrolease-review-note agrolease-review-note-success"><i class="bi bi-check2-circle" aria-hidden="true"></i> Approved by owner and admin</span>{% endif %}</div>
+    </section>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,164 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Admin Panel - AgriCulture{% endblock %}
+{% block body_class %}admin-panel-page{% endblock %}
+
+{% block content %}
+
+    <!-- Page Title -->
+    <div class="page-title dark-background" data-aos="fade" style="background-image: url('{% static 'assets/img/page-title-bg.webp' %}');">
+      <div class="container position-relative">
+        <h1>Admin Panel</h1>
+        <nav class="breadcrumbs">
+          <ol>
+            <li><a href="{% url 'index' %}">Home</a></li>
+            <li class="current">Admin Panel</li>
+          </ol>
+        </nav>
+      </div>
+    </div><!-- End Page Title -->
+
+    <div class="container">
+      <div class="row">
+
+        <div class="col-lg-8">
+
+          <!-- Admin Stats Section -->
+          <section id="admin-stats" class="admin-stats section">
+            <div class="container">
+
+              <h3 class="section-title">Dashboard Overview</h3>
+
+              <div class="row">
+                <div class="col-md-3">
+                  <div class="stat-card">
+                    <h4>{{ total_posts }}</h4>
+                    <p>Total Posts</p>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="stat-card">
+                    <h4>{{ published_posts }}</h4>
+                    <p>Published Posts</p>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="stat-card">
+                    <h4>{{ total_comments }}</h4>
+                    <p>Total Comments</p>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="stat-card">
+                    <h4>{{ approved_comments }}</h4>
+                    <p>Approved Comments</p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </section><!-- /Admin Stats Section -->
+
+          <!-- Recent Posts Section -->
+          <section id="recent-posts" class="recent-posts section">
+            <div class="container">
+
+              <h3 class="section-title">Recent Posts</h3>
+
+              {% for post in recent_posts %}
+              <article class="post-item">
+                <div class="post-content">
+                  <h4><a href="{% url 'blog:detail' post.pk %}">{{ post.title }}</a></h4>
+                  <p>{{ post.excerpt|truncatewords:20 }}</p>
+                  <div class="post-meta">
+                    <span>By: {{ post.author.get_full_name|default:post.author.username }}</span>
+                    <span>{{ post.publish_date|date:"M d, Y" }}</span>
+                    <span>Status: {% if post.is_published %}Published{% else %}Draft{% endif %}</span>
+                  </div>
+                </div>
+              </article>
+              {% endfor %}
+
+            </div>
+          </section><!-- /Recent Posts Section -->
+
+          <!-- Recent Comments Section -->
+          <section id="recent-comments" class="recent-comments section">
+            <div class="container">
+
+              <h3 class="section-title">Recent Comments</h3>
+
+              {% for comment in recent_comments %}
+              <div class="comment-item">
+                <p><strong>{{ comment.author_name }}</strong> on <a href="{% url 'blog:detail' comment.post.pk %}">{{ comment.post.title }}</a></p>
+                <p>{{ comment.content|truncatewords:15 }}</p>
+                <small>{{ comment.created_date|date:"M d, Y" }} - {% if comment.is_approved %}Approved{% else %}Pending{% endif %}</small>
+              </div>
+              {% endfor %}
+
+            </div>
+          </section><!-- /Recent Comments Section -->
+
+        </div>
+
+        <div class="col-lg-4 sidebar">
+
+          <div class="widgets-container">
+
+            <!-- Quick Actions Widget -->
+            <div class="quick-actions-widget widget-item">
+
+              <h3 class="widget-title">Quick Actions</h3>
+              <ul>
+                <li><a href="{% url 'admin:blog_blogpost_add' %}">Add New Post</a></li>
+                <li><a href="{% url 'admin:blog_category_add' %}">Add Category</a></li>
+                <li><a href="{% url 'admin:blog_comment_changelist' %}">Manage Comments</a></li>
+                <li><a href="{% url 'admin:blog_userprofile_changelist' %}">Manage User Profiles</a></li>
+                <li><a href="{% url 'admin:index' %}">Django Admin</a></li>
+              </ul>
+
+            </div><!--/Quick Actions Widget -->
+
+            <!-- Recent Activity Widget -->
+            <div class="recent-activity-widget widget-item">
+
+              <h3 class="widget-title">Recent Activity</h3>
+              <div class="activity-list">
+                {% for post in recent_posts %}
+                <div class="activity-item">
+                  <small>New post: <a href="{% url 'blog:detail' post.pk %}">{{ post.title|truncatechars:30 }}</a></small>
+                  <br><small class="text-muted">{{ post.publish_date|timesince }} ago</small>
+                </div>
+                {% endfor %}
+                {% for comment in recent_comments %}
+                <div class="activity-item">
+                  <small>New comment on <a href="{% url 'blog:detail' comment.post.pk %}">{{ comment.post.title|truncatechars:25 }}</a></small>
+                  <br><small class="text-muted">{{ comment.created_date|timesince }} ago</small>
+                </div>
+                {% endfor %}
+              </div>
+
+            </div><!--/Recent Activity Widget -->
+
+            <!-- System Stats Widget -->
+            <div class="system-stats-widget widget-item">
+
+              <h3 class="widget-title">System Stats</h3>
+              <ul class="stats-list">
+                <li><strong>{{ total_posts }}</strong> Total Posts</li>
+                <li><strong>{{ published_posts }}</strong> Published</li>
+                <li><strong>{{ total_comments }}</strong> Total Comments</li>
+                <li><strong>{{ approved_comments }}</strong> Approved Comments</li>
+              </ul>
+
+            </div><!--/System Stats Widget -->
+
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+{% endblock %}

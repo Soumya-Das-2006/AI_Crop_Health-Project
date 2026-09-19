@@ -1,133 +1,63 @@
 {% extends 'layouts/layout.html' %}
 {% load static %}
 
-{% block title %}AgroLease - Agreement Preview{% endblock %}
+{% block title %}AgroLease - Lease Agreement{% endblock %}
+{% block body_class %}agrolease-agreement-page{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <div class="max-w-4xl mx-auto">
-        <!-- Header -->
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-800">Lease Agreement Preview</h1>
-            <p class="text-gray-600 mt-2">Review the agreement before accepting</p>
+<main class="agrolease-agreement-shell">
+  <div class="container">
+    <header class="agrolease-agreement-heading">
+      <div>
+        <span class="agrolease-eyebrow">AgroLease document</span>
+        <h1>Lease Agreement</h1>
+        <p>Review the people, property, and terms covered by this agreement.</p>
+      </div>
+      {% if agreement.signed_by_farmer %}
+      <span class="agrolease-agreement-status"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Accepted</span>
+      {% else %}
+      <span class="agrolease-agreement-status agrolease-agreement-status-pending"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Awaiting acceptance</span>
+      {% endif %}
+    </header>
+
+    <section class="agrolease-agreement-card agrolease-agreement-overview">
+      <div class="agrolease-agreement-card-header">
+        <div><span class="agrolease-eyebrow">Agreement overview</span><h2>Digital Lease Agreement</h2></div>
+        <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+      </div>
+      <div class="agrolease-party-grid">
+        <div><span>Land owner</span><strong>{{ land.owner.get_full_name|default:land.owner.username }}</strong><small>{{ land.owner.email|default:"Email not provided" }}</small></div>
+        <div><span>Farmer / tenant</span><strong>{{ req.farmer.get_full_name|default:req.farmer.username }}</strong><small>{{ req.farmer.email|default:"Email not provided" }}</small></div>
+        <div><span>Property</span><strong>{{ land.location }}</strong><small>{{ land.size_acres }} acres of agricultural land</small></div>
+      </div>
+      <div class="agrolease-agreement-terms">{{ agreement.terms_text }}</div>
+    </section>
+
+    <section class="agrolease-agreement-card agrolease-agreement-details">
+      <div class="agrolease-agreement-card-header"><div><span class="agrolease-eyebrow">Property and lease</span><h2>Land details summary</h2></div><i class="bi bi-map" aria-hidden="true"></i></div>
+      <div class="agrolease-agreement-detail-columns">
+        <div><h3>Property information</h3><dl><div><dt>Location</dt><dd>{{ land.location }}</dd></div><div><dt>Size</dt><dd>{{ land.size_acres }} acres</dd></div><div><dt>Soil type</dt><dd>{{ land.soil_type }}</dd></div><div><dt>Water source</dt><dd>{{ land.water_source }}</dd></div></dl></div>
+        <div><h3>Lease terms</h3><dl><div><dt>Suitable crops</dt><dd>{{ land.suitable_crops }}</dd></div><div><dt>Rent</dt><dd>₹{{ land.rent_amount|floatformat:0 }} {{ land.rent_frequency }}</dd></div><div><dt>Duration</dt><dd>{{ land.duration_months }} month{{ land.duration_months|pluralize }}</dd></div><div><dt>Status</dt><dd><span class="agrolease-detail-status">Approved</span></dd></div></dl></div>
+      </div>
+    </section>
+
+    <section class="agrolease-agreement-card agrolease-agreement-actions">
+      <div class="agrolease-agreement-card-header"><div><span class="agrolease-eyebrow">Next step</span><h2>Agreement actions</h2></div></div>
+      <div class="agrolease-agreement-action-body">
+        <div class="agrolease-agreement-action-row">
+          {% if agreement.signed_by_farmer %}
+          <div class="agrolease-agreement-accepted"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Agreement accepted</div>
+          {% else %}
+          <form method="post" action="{% url 'agrolease:agreement_action' req.id 'accept' %}">{% csrf_token %}<button type="submit" class="agrolease-agreement-button agrolease-agreement-button-primary"><i class="bi bi-check-circle" aria-hidden="true"></i> Accept agreement</button></form>
+          <form method="post" action="{% url 'agrolease:agreement_action' req.id 'decline' %}">{% csrf_token %}<button type="submit" class="agrolease-agreement-button agrolease-agreement-button-danger"><i class="bi bi-x-circle" aria-hidden="true"></i> Decline agreement</button></form>
+          {% endif %}
+          <button type="button" onclick="window.print()" class="agrolease-agreement-button agrolease-agreement-button-dark"><i class="bi bi-download" aria-hidden="true"></i> Download PDF</button>
         </div>
+        <p class="agrolease-agreement-action-note">{% if agreement.signed_by_farmer %}This agreement was accepted by the farmer and is now read-only.{% else %}Accepting this agreement confirms that you agree to the lease terms shown above.{% endif %}</p>
+      </div>
+    </section>
 
-        <!-- Agreement Card -->
-        <div class="bg-white rounded-lg shadow-lg mb-8">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="text-xl font-semibold text-gray-800">Digital Lease Agreement</h2>
-                <div class="mt-2 flex items-center space-x-4 text-sm text-gray-600">
-                    <span>Land: {{ land.location }}</span>
-                    <span>Owner: {{ land.owner }}</span>
-                    <span>Tenant: {{ request.farmer_name }}</span>
-                </div>
-            </div>
-
-            <div class="p-6">
-                <div class="bg-gray-50 rounded-lg p-6 font-mono text-sm leading-relaxed whitespace-pre-line">
-                    {{ agreement_text }}
-                </div>
-            </div>
-        </div>
-
-        <!-- Land Details Summary -->
-        <div class="bg-white rounded-lg shadow-lg mb-8">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-800">Land Details Summary</h3>
-            </div>
-            <div class="p-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <h4 class="font-medium text-gray-900 mb-3">Property Information</h4>
-                        <div class="space-y-2 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Location:</span>
-                                <span class="font-medium">{{ land.location }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Size:</span>
-                                <span class="font-medium">{{ land.size }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Soil Type:</span>
-                                <span class="font-medium">{{ land.soil_type }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Water Source:</span>
-                                <span class="font-medium">{{ land.water_source }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h4 class="font-medium text-gray-900 mb-3">Lease Terms</h4>
-                        <div class="space-y-2 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Suitable Crops:</span>
-                                <span class="font-medium">{{ land.suitable_crops }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Rent:</span>
-                                <span class="font-medium">{{ land.rent }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Duration:</span>
-                                <span class="font-medium">{{ land.duration }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Status:</span>
-                                <span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Approved</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="bg-white rounded-lg shadow-lg">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-800">Agreement Actions</h3>
-            </div>
-            <div class="p-6">
-                <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                    <button class="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        Accept Agreement
-                    </button>
-
-                    <button class="bg-red-600 text-white px-8 py-3 rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                        Decline Agreement
-                    </button>
-
-                    <button class="bg-gray-600 text-white px-8 py-3 rounded-lg hover:bg-gray-700 transition-colors font-medium flex items-center justify-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                        Download PDF
-                    </button>
-                </div>
-
-                <div class="mt-6 text-center">
-                    <p class="text-sm text-gray-600">
-                        By accepting this agreement, you agree to the terms and conditions outlined above.
-                        This action cannot be undone.
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Back Button -->
-        <div class="text-center mt-8">
-            <a href="{% url 'agrolease:farmer_dashboard' %}" class="text-green-600 hover:text-green-700 font-medium">
-                ← Back to Dashboard
-            </a>
-        </div>
-    </div>
-</div>
+    <div class="agrolease-agreement-back"><a href="{% url 'agrolease:farmer_dashboard' %}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to dashboard</a></div>
+  </div>
+</main>
 {% endblock %}

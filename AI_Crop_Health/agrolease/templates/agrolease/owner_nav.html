@@ -1,0 +1,13 @@
+{% with current_page=owner_nav_page|default:'' %}
+<nav class="agrolease-owner-nav" aria-label="Owner workspace navigation">
+  <a href="{% url 'agrolease:owner_dashboard' %}" class="agrolease-owner-nav-brand"><i class="bi bi-grid-1x2-fill" aria-hidden="true"></i><span>Owner workspace</span></a>
+  <div class="agrolease-owner-nav-links">
+    <a href="{% url 'agrolease:owner_dashboard' %}" class="{% if current_page == 'dashboard' %}is-active{% endif %}"><i class="bi bi-speedometer2" aria-hidden="true"></i> Dashboard</a>
+    <a href="{% url 'agrolease:add_land' %}" class="{% if current_page == 'add_land' %}is-active{% endif %}"><i class="bi bi-plus-circle" aria-hidden="true"></i> Add land</a>
+    <a href="{% url 'agrolease:owner_requests' %}" class="{% if current_page == 'requests' %}is-active{% endif %}"><i class="bi bi-inbox" aria-hidden="true"></i> Requests{% if pending_requests %}<span>{{ pending_requests }}</span>{% endif %}</a>
+    <a href="{% url 'agrolease:owner_profile' %}" class="{% if current_page == 'profile' %}is-active{% endif %}"><i class="bi bi-person" aria-hidden="true"></i> Profile</a>
+    <a href="{% url 'agrolease:role_selection' %}?switch=1"><i class="bi bi-arrow-left-right" aria-hidden="true"></i> Switch role</a>
+    <a href="{% url 'agrolease:logout' %}" class="agrolease-owner-nav-logout"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Log out</a>
+  </div>
+</nav>
+{% endwith %}

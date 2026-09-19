@@ -1,0 +1,222 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Fertilizer Recommendation - AgriCulture{% endblock %}
+{% block body_class %}fertilizer-page{% endblock %}
+
+{% block content %}
+
+<!-- Page Title -->
+<div class="page-title dark-background"
+     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Fertilizer Recommendation</h1>
+    <p>Estimate fertilizer suitability from soil and crop conditions</p>
+    <nav class="breadcrumbs">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li class="current">Fertilizer</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+
+<section class="section">
+  <div class="container">
+    <div class="row align-items-center gy-5">
+
+      <!-- FORM CARD -->
+      <div class="col-lg-7">
+        <div class="card shadow-lg p-4 border-0">
+
+          <h3 class="mb-3 text-success">
+            <i class="bi bi-flower1"></i> Soil & Crop Details
+          </h3>
+
+          <p class="text-muted">
+            Use a recent soil test and the crop's nutrient requirements. Recommendations
+            are model estimates and should be confirmed locally before application.
+          </p>
+
+          <form method="POST" action="{% url 'detection:fertilizer_recommendation' %}">
+            {% csrf_token %}
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Soil Temperature (°C)</label>
+                <input type="number" step="any" name="temperature" class="form-control" required>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Soil Humidity (%)</label>
+                <input type="number" step="any" name="humidity" class="form-control" required>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Soil Moisture</label>
+                <input type="number" step="any" name="moisture" class="form-control" required>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Nitrogen (N)</label>
+                <input type="number" name="N" class="form-control" required>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Phosphorus (P)</label>
+                <input type="number" name="P" class="form-control" required>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Potassium (K)</label>
+                <input type="number" name="K" class="form-control" required>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Soil Type</label>
+                <select name="soil" class="form-select" required>
+                  {% for i, soil in soil_types %}
+                    <option value="{{ i }}">{{ soil }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Crop Type</label>
+                <select name="crop" class="form-select" required>
+                  {% for i, crop in crop_types %}
+                    <option value="{{ i }}">{{ crop }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div class="text-center mt-4">
+              <button type="submit" class="btn btn-success px-5">
+                Predict Fertilizer
+              </button>
+            </div>
+          </form>
+
+          <!-- RESULT -->
+          <div id="result-box" class="mt-4" style="display:none;">
+            <div class="alert alert-success text-center">
+              <h4>🧪 Best Fertilizer</h4>
+              <h2 id="best-fertilizer"></h2>
+
+              <p>Confidence: <strong><span id="confidence"></span>%</strong></p>
+              <p>Accuracy Level:
+                <span id="accuracy-level" class="badge bg-success"></span>
+              </p>
+              <p class="small text-muted mb-0">
+                Confirm the rate and timing with a soil test and local agronomist before applying fertilizer.
+              </p>
+
+              <hr>
+              <h5>Top 3 Recommendations</h5>
+              <ul id="top3-list" class="list-group mt-2"></ul>
+            </div>
+          </div>
+
+          <div id="error-box" class="alert alert-danger mt-4" style="display:none;"></div>
+
+          <div id="chart-container" class="mt-4" style="display:none;">
+            <canvas id="fertilizerChart" height="120"></canvas>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- IMAGE -->
+      <div class="col-lg-5 text-center">
+        <img src="{% static 'assets/img/upload-img.jpg' %}"
+             class="img-fluid rounded shadow"
+             alt="Soil Analysis">
+        <p class="text-muted mt-3">
+          AI-powered fertilizer recommendation for maximum yield
+        </p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+{% endblock %}  {# ✅ content block properly closed #}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+let fertilizerChart = null;
+
+document.querySelector("form").addEventListener("submit", function (e) {
+  e.preventDefault();
+
+  const formData = new FormData(this);
+
+  fetch(this.action, {
+    method: "POST",
+    headers: { "X-Requested-With": "XMLHttpRequest" },
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.error) {
+      document.getElementById("error-box").innerText = data.error;
+      document.getElementById("error-box").style.display = "block";
+      document.getElementById("result-box").style.display = "none";
+      document.getElementById("chart-container").style.display = "none";
+      return;
+    }
+
+    document.getElementById("best-fertilizer").innerText = data.best;
+    document.getElementById("confidence").innerText = data.confidence;
+    document.getElementById("accuracy-level").innerText = data.accuracy_level;
+
+    const list = document.getElementById("top3-list");
+    list.innerHTML = "";
+
+    const labels = [];
+    const values = [];
+
+    data.top_3.forEach(item => {
+      labels.push(item[0]);
+      values.push(item[1]);
+
+      const li = document.createElement("li");
+      li.className = "list-group-item d-flex justify-content-between";
+      li.innerHTML = `<span>${item[0]}</span><strong>${item[1]}%</strong>`;
+      list.appendChild(li);
+    });
+
+    document.getElementById("result-box").style.display = "block";
+    document.getElementById("error-box").style.display = "none";
+    document.getElementById("chart-container").style.display = "block";
+
+    const ctx = document.getElementById("fertilizerChart").getContext("2d");
+    if (fertilizerChart) fertilizerChart.destroy();
+
+    fertilizerChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "Confidence (%)",
+          data: values
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { beginAtZero: true, max: 100 }
+        }
+      }
+    });
+  })
+  .catch(() => {
+    document.getElementById("error-box").innerText = "Server error. Try again.";
+    document.getElementById("error-box").style.display = "block";
+  });
+});
+</script>
+{% endblock %}

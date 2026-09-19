@@ -5,186 +5,114 @@
 {% block body_class %}agrolease-owner-dashboard-page{% endblock %}
 
 {% block content %}
-
-<div class="page-title dark-background"
-     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
   <div class="container position-relative">
     <h1>Land Owner Dashboard</h1>
     <p>Manage your agricultural land listings and lease requests</p>
-    <nav class="breadcrumbs">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
       <ol>
         <li><a href="{% url 'index' %}">Home</a></li>
-        <li><a href="/">AgroLease</a></li>
-        <li class="current">Owner Dashboard</li>
+        <li><a href="{% url 'agrolease:role_selection' %}">AgroLease</a></li>
+        <li class="current" aria-current="page">Owner Dashboard</li>
       </ol>
-    <a href="{% url \'agrolease:logout\' %}" class="btn btn-outline-danger ms-2">Logout</a>\1
+    </nav>
   </div>
 </div>
 
-<section class="section">
+<section class="agrolease-dashboard-section">
   <div class="container">
-    <!-- Header -->
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800">Land Owner Dashboard</h1>
-        <p class="text-gray-600 mt-2">Manage your agricultural land listings and lease requests</p>
-    </div>
+    {% with owner_nav_page='dashboard' %}{% include 'agrolease/owner_nav.html' %}{% endwith %}
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="p-3 bg-green-100 rounded-full">
-                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                    </svg>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Total Lands</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ monthly_revenue }}</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="p-3 bg-blue-100 rounded-full">
-                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Active Leases</p>
-                    <p class="text-2xl font-bold text-gray-900">2</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="p-3 bg-yellow-100 rounded-full">
-                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Pending Requests</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ pending_requests }}</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="p-3 bg-purple-100 rounded-full">
-                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
-                    </svg>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Monthly Revenue</p>
-                    <p class="text-2xl font-bold text-gray-900">₹45,000</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Action Buttons -->
-    <div class="mb-8">
-        <a href="{% url 'agrolease:add_land' %}" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium inline-flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-            </svg>
-            Add New Land
+    <div class="agrolease-dashboard-header">
+      <div>
+        <p class="agrolease-eyebrow">Owner workspace</p>
+        <h2>Good to see you, {{ request.user.first_name|default:request.user.username }}</h2>
+        <p>Keep your land portfolio current and respond to new farming opportunities.</p>
+      </div>
+      <div class="agrolease-dashboard-actions">
+        <a href="{% url 'agrolease:add_land' %}" class="agrolease-primary-action">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i>
+          Add land
         </a>
-        <a href="{% url 'agrolease:owner_requests' %}" class="ml-4 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium inline-flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-            </svg>
-            View Requests
+        <a href="{% url 'agrolease:owner_requests' %}" class="agrolease-secondary-action">
+          <i class="bi bi-inbox" aria-hidden="true"></i>
+          View requests
         </a>
+      </div>
     </div>
 
-    <!-- My Lands -->
-    <div class="bg-white rounded-lg shadow mb-8">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-xl font-semibold text-gray-800">My Land Listings</h2>
-        </div>
-        <div class="p-6">
-            {% if lands %}
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {% for land in lands %}
-                    <div class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-                        <!-- Land Image -->
-                        <div class="h-48 bg-gray-200 flex items-center justify-center">
-                            <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                            </svg>
-                        </div>
-
-                        <!-- Land Details -->
-                        <div class="p-4">
-                            <div class="flex justify-between items-start mb-2">
-                                <h3 class="font-semibold text-gray-900">{{ land.location }}</h3>
-                                <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Active</span>
-                            </div>
-
-                            <div class="space-y-1 text-sm text-gray-600 mb-3">
-                                <p>Size: {{ land.size }}</p>
-                                <p>Soil: {{ land.soil_type }}</p>
-                                <p>Rent: {{ land.rent }}</p>
-                            </div>
-
-                            <div class="flex justify-between items-center">
-                                <span class="text-lg font-bold text-green-600">{{ land.rent }}</span>
-                                <button class="bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-200">
-                                    Edit
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="text-center py-12">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                    </svg>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900">No lands listed yet</h3>
-                    <p class="mt-1 text-sm text-gray-500">Start by adding your first land listing.</p>
-                    <div class="mt-6">
-                        <a href="{% url 'agrolease:add_land' %}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
-                            Add Land
-                        </a>
-                    </div>
-                </div>
-            {% endif %}
-        </div>
+    <div class="agrolease-stat-grid" aria-label="Portfolio summary">
+      <article class="agrolease-stat-card">
+        <div class="agrolease-stat-icon agrolease-stat-icon-green"><i class="bi bi-map" aria-hidden="true"></i></div>
+        <div><span>Total listings</span><strong>{{ total_lands }}</strong><small>Land parcels in your portfolio</small></div>
+      </article>
+      <article class="agrolease-stat-card">
+        <div class="agrolease-stat-icon agrolease-stat-icon-blue"><i class="bi bi-check2-circle" aria-hidden="true"></i></div>
+        <div><span>Active leases</span><strong>{{ active_leases }}</strong><small>Currently leased parcels</small></div>
+      </article>
+      <article class="agrolease-stat-card">
+        <div class="agrolease-stat-icon agrolease-stat-icon-amber"><i class="bi bi-hourglass-split" aria-hidden="true"></i></div>
+        <div><span>Pending requests</span><strong>{{ pending_requests }}</strong><small>Waiting for your review</small></div>
+      </article>
+      <article class="agrolease-stat-card">
+        <div class="agrolease-stat-icon agrolease-stat-icon-green"><i class="bi bi-currency-rupee" aria-hidden="true"></i></div>
+        <div><span>Lease revenue</span><strong>₹{{ monthly_revenue|floatformat:0 }}</strong><small>Current leased land total</small></div>
+      </article>
     </div>
 
-    <!-- Recent Activity -->
-    <div class="bg-white rounded-lg shadow">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-xl font-semibold text-gray-800">Recent Activity</h2>
+    <div class="agrolease-dashboard-grid">
+      <section class="agrolease-panel agrolease-listings-panel">
+        <div class="agrolease-panel-heading">
+          <div><p class="agrolease-eyebrow">Your portfolio</p><h3>Land listings</h3></div>
+          <span class="agrolease-panel-count">{{ total_lands }} total</span>
         </div>
-        <div class="p-6">
-            <div class="space-y-4">
-                <div class="flex items-center space-x-3">
-                    <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <p class="text-sm text-gray-600">New lease request received for Mysore land</p>
-                    <span class="text-xs text-gray-400">2 hours ago</span>
-                </div>
-                <div class="flex items-center space-x-3">
-                    <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <p class="text-sm text-gray-600">Lease agreement signed for Coimbatore land</p>
-                    <span class="text-xs text-gray-400">1 day ago</span>
-                </div>
-                <div class="flex items-center space-x-3">
-                    <div class="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                    <p class="text-sm text-gray-600">Land verification completed</p>
-                    <span class="text-xs text-gray-400">3 days ago</span>
-                </div>
+
+        {% if lands %}
+        <div class="agrolease-listing-grid">
+          {% for land in lands %}
+          <article class="agrolease-listing-card">
+            <div class="agrolease-listing-visual">
+              {% if land.image %}
+              <img src="{{ land.image.url }}" alt="Land in {{ land.location }}">
+              {% else %}
+              <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>
+              {% endif %}
+              <span class="agrolease-status agrolease-status-{{ land.status }}">{{ land.get_status_display }}</span>
             </div>
+            <div class="agrolease-listing-body">
+              <h4>{{ land.location }}</h4>
+              <p class="agrolease-listing-meta"><i class="bi bi-rulers" aria-hidden="true"></i> {{ land.size_acres }} acres <span>•</span> {{ land.soil_type }}</p>
+              <dl>
+                <div><dt>Water</dt><dd>{{ land.water_source }}</dd></div>
+                <div><dt>Rent</dt><dd>₹{{ land.rent_amount|floatformat:0 }} / {{ land.rent_frequency }}</dd></div>
+              </dl>
+              <div class="agrolease-listing-footer"><span>{{ land.duration_months }} month term</span><span>{{ land.suitable_crops|truncatechars:28 }}</span></div>
+            </div>
+          </article>
+          {% endfor %}
         </div>
+        {% else %}
+        <div class="agrolease-empty-state">
+          <div class="agrolease-empty-icon"><i class="bi bi-map" aria-hidden="true"></i></div>
+          <h4>No land listings yet</h4>
+          <p>Add your first parcel to start receiving suitable lease requests.</p>
+          <a href="{% url 'agrolease:add_land' %}" class="agrolease-primary-action">Add your first listing</a>
+        </div>
+        {% endif %}
+      </section>
+
+      <aside class="agrolease-panel agrolease-activity-panel">
+        <div class="agrolease-profile-card">
+          <div class="agrolease-profile-avatar">{{ request.user.first_name|default:request.user.username|first|upper }}</div>
+          <div><p class="agrolease-eyebrow">Your profile</p><h3>{{ request.user.get_full_name|default:request.user.username }}</h3><p>{{ request.user.agroprofile.phone_number|default:"Phone not added" }}</p><p>{{ request.user.email|default:"Email not added" }}</p></div>
+          <span class="agrolease-profile-badge"><i class="bi bi-patch-check-fill" aria-hidden="true"></i> Owner</span>
+        </div>
+        <div class="agrolease-panel-heading"><div><p class="agrolease-eyebrow">Stay up to date</p><h3>Next steps</h3></div></div>
+        <div class="agrolease-next-step"><span class="agrolease-step-number">01</span><div><strong>Review requests</strong><p>{{ pending_requests }} request{{ pending_requests|pluralize }} waiting for attention.</p></div><a href="{% url 'agrolease:owner_requests' %}" aria-label="Review requests"><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></div>
+        <div class="agrolease-next-step"><span class="agrolease-step-number">02</span><div><strong>Keep listings fresh</strong><p>Update availability and crop details as seasons change.</p></div><a href="{% url 'agrolease:add_land' %}" aria-label="Add land"><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></div>
+        <div class="agrolease-trust-note"><i class="bi bi-shield-check" aria-hidden="true"></i><div><strong>Verified marketplace</strong><p>Approved listings are shown to farmers searching for suitable land.</p></div></div>
+      </aside>
     </div>
-</div>
+  </div>
+</section>
 {% endblock %}

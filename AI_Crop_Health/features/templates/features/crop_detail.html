@@ -1,0 +1,106 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}{{ crop.crop_name }} - Crop Information{% endblock %}
+{% block body_class %}crop-detail-page{% endblock %}
+
+{% block content %}
+
+<!-- Page Title -->
+<div class="page-title dark-background" data-aos="fade"
+     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>{{ crop.crop_name }}</h1>
+    <p>Complete crop cultivation information</p>
+    <nav class="breadcrumbs">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li><a href="{% url 'features:cropinfo' %}">Crop Info</a></li>
+        <li class="current">{{ crop.crop_name }}</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+<!-- End Page Title -->
+
+<section class="section">
+  <div class="container">
+    <div class="row gy-4">
+
+      <!-- LEFT: Crop Image -->
+      <div class="col-lg-6">
+        <div class="crop-image">
+          <img src="{{ crop.crop_image.url }}" alt="{{ crop.crop_name }}" class="img-fluid rounded">
+        </div>
+      </div>
+
+      <!-- RIGHT: Quick Summary -->
+      <div class="col-lg-6">
+        <div class="crop-summary">
+          <h3>Crop Summary</h3>
+          <p><strong>Category:</strong> {{ crop.category }}</p>
+          <p><strong>Season:</strong> {{ crop.season }}</p>
+          <p><strong>Soil Type:</strong> {{ crop.soil_type }}</p>
+          <p><strong>Climate:</strong> {{ crop.climate }}</p>
+          <p><strong>Water Requirement:</strong> {{ crop.water_requirement }}</p>
+          <p><strong>Average Yield:</strong> {{ crop.average_yield }}</p>
+        </div>
+      </div>
+
+    </div>
+
+    <hr class="my-5">
+
+    <!-- Detailed Sections -->
+    <div class="row">
+
+      <div class="col-lg-8">
+
+        <div class="info-section">
+          <h3>Crop Description</h3>
+          <p>{{ crop.description }}</p>
+        </div>
+
+        <div class="info-section">
+          <h3>Sowing & Harvesting</h3>
+          <p><strong>Sowing Time:</strong> {{ crop.sowing_time }}</p>
+          <p><strong>Harvesting Time:</strong> {{ crop.harvesting_time }}</p>
+        </div>
+
+        <div class="info-section">
+          <h3>Fertilizer Requirement</h3>
+          <p>{{ crop.fertilizer_requirement }}</p>
+        </div>
+
+        <div class="info-section">
+          <h3>Common Diseases</h3>
+          <p>{{ crop.common_diseases }}</p>
+        </div>
+
+        <div class="info-section">
+          <h3>Prevention Tips</h3>
+          <p>{{ crop.prevention_tips }}</p>
+        </div>
+
+      </div>
+
+      <!-- Sidebar -->
+      <div class="col-lg-4">
+        <div class="crop-summary">
+          <h3>Farmer Tips</h3>
+          <p>✔ Follow recommended sowing time</p>
+          <p>✔ Maintain proper irrigation</p>
+          <p>✔ Monitor for early disease signs</p>
+          <p>✔ Use balanced fertilizers</p>
+
+          <a href="{% url 'features:cropinfo' %}" class="btn btn-success w-100 mt-3">
+            ← Back to Crop List
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+{% endblock %}

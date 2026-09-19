@@ -1,0 +1,33 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Lease Requests - AgriCulture{% endblock %}
+{% block body_class %}agrolease-owner-requests-page{% endblock %}
+
+{% block content %}
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Lease Requests</h1>
+    <p>Review farmers interested in your land listings</p>
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="{% url 'index' %}">Home</a></li><li><a href="{% url 'agrolease:owner_dashboard' %}">Owner Dashboard</a></li><li class="current" aria-current="page">Requests</li></ol></nav>
+  </div>
+</div>
+<section class="agrolease-dashboard-section">
+  <div class="container">
+    {% with owner_nav_page='requests' %}{% include 'agrolease/owner_nav.html' %}{% endwith %}
+    <div class="agrolease-request-heading"><div><p class="agrolease-eyebrow">Owner workspace</p><h2>Lease requests</h2><p>Review and manage interest in your available parcels.</p></div><a href="{% url 'agrolease:add_land' %}" class="agrolease-primary-action"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add land</a></div>
+    <section class="agrolease-panel agrolease-requests-panel">
+      <div class="agrolease-panel-heading"><div><p class="agrolease-eyebrow">Inbox</p><h3>Farmer interest</h3></div><span class="agrolease-panel-count">{{ requests|length }} total</span></div>
+      {% if requests %}
+      <div class="agrolease-request-list">
+        {% for lease_request in requests %}
+        <article class="agrolease-request-row"><div class="agrolease-request-avatar">{{ lease_request.farmer.first_name|default:lease_request.farmer.username|first|upper }}</div><div class="agrolease-request-main"><h4>{{ lease_request.farmer.get_full_name|default:lease_request.farmer.username }}</h4><p><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ lease_request.land.location }} <span>•</span> {{ lease_request.land.size_acres }} acres</p><small>{{ lease_request.request_date|date:"d M Y, g:i A" }}</small></div><span class="agrolease-request-status agrolease-request-status-{{ lease_request.status }}">{{ lease_request.get_status_display }}</span><a href="{% url 'agrolease:owner_request_detail' lease_request.id %}" class="agrolease-request-arrow" aria-label="View farmer request"><i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="agrolease-empty-state"><div class="agrolease-empty-icon"><i class="bi bi-inbox" aria-hidden="true"></i></div><h4>No lease requests yet</h4><p>New farmer interest will appear here when someone requests one of your listings.</p><a href="{% url 'agrolease:add_land' %}" class="agrolease-primary-action">Add a land listing</a></div>
+      {% endif %}
+    </section>
+  </div>
+</section>
+{% endblock %}

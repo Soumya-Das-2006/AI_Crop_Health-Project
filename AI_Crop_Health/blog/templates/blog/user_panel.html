@@ -1,0 +1,161 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}User Panel - AgriCulture{% endblock %}
+{% block body_class %}user-panel-page{% endblock %}
+
+{% block content %}
+
+    <!-- Page Title -->
+    <div class="page-title dark-background" data-aos="fade" style="background-image: url('{% static 'assets/img/page-title-bg.webp' %}');">
+      <div class="container position-relative">
+        <h1>User Panel</h1>
+        <nav class="breadcrumbs">
+          <ol>
+            <li><a href="{% url 'index' %}">Home</a></li>
+            <li class="current">User Panel</li>
+          </ol>
+        </nav>
+      </div>
+    </div><!-- End Page Title -->
+
+    <div class="container">
+      <div class="row">
+
+        <div class="col-lg-8">
+
+          <!-- User Posts Section -->
+          <section id="user-posts" class="user-posts section">
+            <div class="container">
+
+              <h3 class="section-title">Your Posts</h3>
+
+              {% for post in user_posts %}
+              <article class="post-item">
+                <div class="post-content">
+                  <h4><a href="{% url 'blog:detail' post.pk %}">{{ post.title }}</a></h4>
+                  <p>{{ post.excerpt|truncatewords:20 }}</p>
+                  <div class="post-meta">
+                    <span>Published: {{ post.publish_date|date:"M d, Y" }}</span>
+                    <span>Status: {% if post.is_published %}Published{% else %}Draft{% endif %}</span>
+                    <span>Comments: {{ post.comments.count }}</span>
+                  </div>
+                </div>
+              </article>
+              {% empty %}
+              <p>You haven't created any posts yet.</p>
+              {% endfor %}
+
+            </div>
+          </section><!-- /User Posts Section -->
+
+          <!-- User Comments Section -->
+          <section id="user-comments" class="user-comments section">
+            <div class="container">
+
+              <h3 class="section-title">Your Comments</h3>
+
+              {% for comment in user_comments %}
+              <div class="comment-item">
+                <p><strong>On <a href="{% url 'blog:detail' comment.post.pk %}">{{ comment.post.title }}</a></strong></p>
+                <p>{{ comment.content|truncatewords:15 }}</p>
+                <small>{{ comment.created_date|date:"M d, Y" }} - {% if comment.is_approved %}Approved{% else %}Pending{% endif %}</small>
+              </div>
+              {% empty %}
+              <p>You haven't posted any comments yet.</p>
+              {% endfor %}
+
+            </div>
+          </section><!-- /User Comments Section -->
+
+        </div>
+
+        <div class="col-lg-4 sidebar">
+
+          <div class="widgets-container">
+
+            <!-- User Profile Widget -->
+            <div class="user-profile-widget widget-item">
+
+              <div class="d-flex flex-column align-items-center">
+                {% if user.userprofile.profile_image %}
+                  <img src="{{ user.userprofile.profile_image.url }}" class="rounded-circle mb-3" alt="{{ user.get_full_name|default:user.username }}" style="width: 80px; height: 80px; object-fit: cover;">
+                {% else %}
+                  <img src="{% static 'assets/img/blog/blog-author.jpg' %}" class="rounded-circle mb-3" alt="{{ user.get_full_name|default:user.username }}" style="width: 80px; height: 80px; object-fit: cover;">
+                {% endif %}
+                <h4>{{ user.get_full_name|default:user.username }}</h4>
+                {% if user.userprofile.bio %}
+                  <p class="text-center">{{ user.userprofile.bio|truncatewords:10 }}</p>
+                {% endif %}
+                <div class="social-links mt-2">
+                  {% if user.userprofile.twitter %}
+                    <a href="{{ user.userprofile.twitter }}" class="me-2"><i class="bi bi-twitter-x"></i></a>
+                  {% endif %}
+                  {% if user.userprofile.facebook %}
+                    <a href="{{ user.userprofile.facebook }}" class="me-2"><i class="bi bi-facebook"></i></a>
+                  {% endif %}
+                  {% if user.userprofile.instagram %}
+                    <a href="{{ user.userprofile.instagram }}" class="me-2"><i class="bi bi-instagram"></i></a>
+                  {% endif %}
+                  {% if user.userprofile.linkedin %}
+                    <a href="{{ user.userprofile.linkedin }}" class="me-2"><i class="bi bi-linkedin"></i></a>
+                  {% endif %}
+                </div>
+              </div>
+
+            </div><!--/User Profile Widget -->
+
+            <!-- Account Stats Widget -->
+            <div class="account-stats-widget widget-item">
+
+              <h3 class="widget-title">Your Stats</h3>
+              <ul class="stats-list">
+                <li><strong>{{ user_posts.count }}</strong> Posts Created</li>
+                <li><strong>{{ user_comments.count }}</strong> Comments Made</li>
+                <li><strong>{{ user_posts.filter(is_published=True).count }}</strong> Published Posts</li>
+              </ul>
+
+            </div><!--/Account Stats Widget -->
+
+            <!-- Quick Actions Widget -->
+            <div class="quick-actions-widget widget-item">
+
+              <h3 class="widget-title">Quick Actions</h3>
+              <ul>
+                <li><a href="{% url 'admin:blog_blogpost_add' %}">Create New Post</a></li>
+                <li><a href="{% url 'blog:list' %}">View All Posts</a></li>
+                <li><a href="{% url 'admin:blog_userprofile_change' user.userprofile.pk %}">Edit Profile</a></li>
+                <li><a href="{% url 'admin:index' %}">Admin Panel</a></li>
+              </ul>
+
+            </div><!--/Quick Actions Widget -->
+
+            <!-- Recent Activity Widget -->
+            <div class="recent-activity-widget widget-item">
+
+              <h3 class="widget-title">Recent Activity</h3>
+              <div class="activity-list">
+                {% for post in user_posts|slice:":3" %}
+                <div class="activity-item">
+                  <small>Posted: <a href="{% url 'blog:detail' post.pk %}">{{ post.title|truncatechars:25 }}</a></small>
+                  <br><small class="text-muted">{{ post.publish_date|timesince }} ago</small>
+                </div>
+                {% endfor %}
+                {% for comment in user_comments|slice:":2" %}
+                <div class="activity-item">
+                  <small>Commented on <a href="{% url 'blog:detail' comment.post.pk %}">{{ comment.post.title|truncatechars:20 }}</a></small>
+                  <br><small class="text-muted">{{ comment.created_date|timesince }} ago</small>
+                </div>
+                {% endfor %}
+              </div>
+
+            </div><!--/Recent Activity Widget -->
+
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+{% endblock %}

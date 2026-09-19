@@ -1,0 +1,34 @@
+{% with current_page=farmer_nav_page|default:'' %}
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-2 d-flex flex-column flex-md-row justify-content-between align-items-center">
+        <div class="d-flex align-items-center px-3 py-2 mb-3 mb-md-0">
+            <div class="bg-success text-white rounded p-2 me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                <i class="fas fa-tractor fa-lg"></i>
+            </div>
+            <h5 class="fw-bold mb-0 text-dark">Farmer Workspace</h5>
+        </div>
+        <ul class="nav nav-pills flex-column flex-sm-row align-items-center p-2">
+            <li class="nav-item">
+                <a class="nav-link {% if current_page == 'dashboard' %}active bg-success{% else %}text-dark{% endif %} rounded-pill px-3 py-2 fw-semibold" href="{% url 'agrolease:farmer_dashboard' %}">
+                    <i class="fas fa-chart-line me-2"></i> Dashboard
+                </a>
+            </li>
+            <li class="nav-item ms-sm-2 mt-2 mt-sm-0">
+                <a class="nav-link {% if current_page == 'search' %}active bg-success{% else %}text-dark{% endif %} rounded-pill px-3 py-2 fw-semibold" href="{% url 'agrolease:search_land' %}">
+                    <i class="fas fa-search-location me-2"></i> Find Land
+                </a>
+            </li>
+            <li class="nav-item ms-sm-2 mt-2 mt-sm-0">
+                <a class="nav-link text-dark rounded-pill px-3 py-2 fw-semibold" href="{% url 'agrolease:role_selection' %}?switch=1">
+                    <i class="fas fa-exchange-alt me-2"></i> Switch Role
+                </a>
+            </li>
+            <li class="nav-item ms-sm-2 mt-2 mt-sm-0">
+                <a class="btn btn-outline-danger rounded-pill px-3 py-2 fw-semibold" href="{% url 'agrolease:logout' %}">
+                    <i class="fas fa-sign-out-alt me-2"></i> Logout
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
+{% endwith %}

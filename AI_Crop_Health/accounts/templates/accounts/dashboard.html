@@ -1,0 +1,35 @@
+{% extends 'layouts/layout.html' %}
+{% load static %}
+
+{% block title %}Farmer Workspace - AI Crop Health Platform{% endblock %}
+{% block body_class %}accounts-farmer-page{% endblock %}
+
+{% block content %}
+<main class="accounts-farmer-shell">
+    <div class="container">
+        {% if messages %}<div class="accounts-alerts">{% for message in messages %}<div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>{% endfor %}</div>{% endif %}
+        <section class="accounts-welcome-band">
+            <div><p class="accounts-kicker"><i class="bi bi-grid-1x2-fill" aria-hidden="true"></i> Farmer workspace</p><h1>Good to see you, {{ user.first_name|default:user.username }}</h1><p>Everything you need to monitor crop health, manage orders, and grow with confidence.</p></div>
+            <div class="accounts-welcome-mark"><i class="bi bi-flower1" aria-hidden="true"></i><span>Growing smarter<br>every season</span></div>
+        </section>
+
+        <div class="accounts-dashboard-grid">
+            <aside class="accounts-profile-panel">
+                <div class="accounts-profile-top"><div class="accounts-avatar">{{ user.first_name|default:user.username|first|upper }}</div><div><span class="accounts-eyebrow">Your profile</span><h2>{{ user.first_name|default:user.username }}</h2><p>Farmer account</p></div></div>
+                <div class="accounts-verification"><span><i class="bi bi-shield-check" aria-hidden="true"></i> Account security</span>{% if user.global_profile.is_phone_verified and user.global_profile.is_email_verified %}<strong>Fully verified</strong>{% else %}<a href="{% url 'accounts:profile_edit' %}" class="accounts-profile-complete"><i class="bi bi-pencil-square" aria-hidden="true"></i> Complete profile</a>{% endif %}</div>
+                <dl class="accounts-profile-facts"><div><dt>Mobile</dt><dd>{{ user.global_profile.phone_number|default:"Not provided" }} {% if user.global_profile.is_phone_verified %}<i class="bi bi-check-circle-fill" aria-label="Verified"></i>{% endif %}</dd></div><div><dt>Email</dt><dd>{{ user.email|default:"Not provided" }} {% if user.global_profile.is_email_verified %}<i class="bi bi-check-circle-fill" aria-label="Verified"></i>{% endif %}</dd></div></dl>
+                <a href="{% url 'accounts:logout' %}" class="accounts-logout"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Log out</a>
+            </aside>
+
+            <section class="accounts-services"><div class="accounts-section-heading"><div><span class="accounts-eyebrow">Your toolkit</span><h2>What would you like to do?</h2></div><span class="accounts-section-note">3 services available</span></div>
+                <div class="accounts-service-grid">
+                    <article class="accounts-service-card accounts-service-health"><div class="accounts-service-icon"><i class="bi bi-heart-pulse" aria-hidden="true"></i></div><span class="accounts-card-label">Crop care</span><h3>AI Crop Health</h3><p>Check crop images, understand disease signals, and revisit your field history.</p><div class="accounts-card-actions"><a href="{% url 'detection:diagnosis' %}" class="accounts-card-primary">New scan <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a><a href="{% url 'detection:my_detection_history' %}" class="accounts-card-link">History</a></div></article>
+                    <article class="accounts-service-card accounts-service-market"><div class="accounts-service-icon"><i class="bi bi-basket3" aria-hidden="true"></i></div><span class="accounts-card-label">Farm supplies</span><h3>Marketplace</h3><p>Find agricultural products, track purchases, and keep your farming essentials close.</p><div class="accounts-card-actions"><a href="{% url 'marketplace:catalog' %}" class="accounts-card-primary">Browse store <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a><a href="{% url 'marketplace:orders' %}" class="accounts-card-link">My orders</a></div></article>
+                    <article class="accounts-service-card accounts-service-lease"><div class="accounts-service-icon"><i class="bi bi-map" aria-hidden="true"></i></div><span class="accounts-card-label">Land & cultivation</span><h3>AgroLease</h3><p>Find land, follow lease requests, or switch into your owner workspace.</p><div class="accounts-card-actions"><a href="{% if user.agroprofile %}{% if user.agroprofile.role == 'owner' %}{% url 'agrolease:owner_dashboard' %}{% else %}{% url 'agrolease:farmer_dashboard' %}{% endif %}{% else %}{% url 'agrolease:register' %}{% endif %}" class="accounts-card-primary">Open workspace <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a><a href="{% url 'agrolease:role_selection' %}?switch=1" class="accounts-card-link">Switch role</a></div></article>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+</main>
+{% endblock %}

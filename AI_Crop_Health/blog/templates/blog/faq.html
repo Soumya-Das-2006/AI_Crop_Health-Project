@@ -1,0 +1,62 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Frequently Asked Questions - AgriCulture{% endblock %}
+{% block meta_description %}Answers to common questions about AgriCulture crop health, AgroLease, weather, and farming tools.{% endblock %}
+{% block body_class %}faq-page{% endblock %}
+
+{% block content %}
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Frequently Asked Questions</h1>
+    <p>Clear answers for better farming decisions</p>
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="{% url 'index' %}">Home</a></li><li><a href="{% url 'blog:list' %}">Blog</a></li><li class="current" aria-current="page">FAQ</li></ol></nav>
+  </div>
+</div>
+
+<section class="faq-section">
+  <div class="container">
+    <div class="faq-intro"><p class="faq-eyebrow">Help center</p><h2>Everything you need to get started</h2><p>Browse common questions about crop diagnosis, recommendations, land leasing, and your account.</p></div>
+    <div class="faq-layout">
+      <aside class="faq-aside"><div class="faq-aside-icon"><i class="bi bi-chat-square-text" aria-hidden="true"></i></div><h3>Still have questions?</h3><p>Our support team can help you find the right next step.</p><a href="{% url 'contact:form' %}" class="faq-support-link">Contact support <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></aside>
+      <div class="faq-groups">
+        <div class="faq-group"><p class="faq-group-label">Using the platform</p><div class="faq-list">
+          <details id="faq-platform-help" open><summary><span>What can AgriCulture help me with?</span><a href="#faq-platform-help" class="faq-question-link" aria-label="Copy link to this question" onclick="event.stopPropagation()"><i class="bi bi-link-45deg" aria-hidden="true"></i></a><i class="bi bi-plus-lg" aria-hidden="true"></i></summary><p>AgriCulture brings crop disease diagnosis, crop and fertilizer recommendations, weather insights, farming guidance, and the AgroLease land marketplace into one platform.</p></details>
+          <details id="faq-account"><summary><span>Do I need an account to use the tools?</span><a href="#faq-account" class="faq-question-link" aria-label="Copy link to this question" onclick="event.stopPropagation()"><i class="bi bi-link-45deg" aria-hidden="true"></i></a><i class="bi bi-plus-lg" aria-hidden="true"></i></summary><p>Some public information is available without an account. An account is required for AgroLease registration, land requests, owner listings, and account-specific dashboards.</p></details>
+          <details id="faq-switch-role"><summary><span>How do I switch between Farmer and Land Owner?</span><a href="#faq-switch-role" class="faq-question-link" aria-label="Copy link to this question" onclick="event.stopPropagation()"><i class="bi bi-link-45deg" aria-hidden="true"></i></a><i class="bi bi-plus-lg" aria-hidden="true"></i></summary><p>Use Switch Role from your workspace navigation. You can only switch to roles registered on your account.</p></details>
+          <details id="faq-register-account"><summary><span>How do I register an AgroLease account?</span><a href="#faq-register-account" class="faq-question-link" aria-label="Open link to this question" onclick="event.stopPropagation()"><i class="bi bi-link-45deg" aria-hidden="true"></i></a><i class="bi bi-plus-lg" aria-hidden="true"></i></summary><p>Choose Land Owner or Farmer during registration, enter your mobile number and email, then complete the role-specific onboarding steps.</p></details>
+          <details id="faq-mobile-login"><summary><span>Which mobile number formats are accepted?</span><a href="#faq-mobile-login" class="faq-question-link" aria-label="Open link to this question" onclick="event.stopPropagation()"><i class="bi bi-link-45deg" aria-hidden="true"></i></a><i class="bi bi-plus-lg" aria-hidden="true"></i></summary><p>You can use a 10-digit Indian mobile number or include the +91 country code with spaces or hyphens.</p></details>
+        </div></div>
+        <div class="faq-group"><p class="faq-group-label">AgroLease</p><div class="faq-list">
+          <details id="faq-owner-verification"><summary><span>How does owner verification work?</span><a href="#faq-owner-verification" class="faq-question-link" aria-label="Copy link to this question" onclick="event.stopPropagation()"><i class="bi bi-link-45deg" aria-hidden="true"></i></a><i class="bi bi-plus-lg" aria-hidden="true"></i></summary><p>Land owners submit a government ID, ownership proof, address proof, and optionally a selfie. An administrator reviews the documents before the owner can publish land.</p></details>
+          <details id="faq-land-approval"><summary><span>When does a land listing appear to farmers?</span><a href="#faq-land-approval" class="faq-question-link" aria-label="Copy link to this question" onclick="event.stopPropagation()"><i class="bi bi-link-45deg" aria-hidden="true"></i></a><i class="bi bi-plus-lg" aria-hidden="true"></i></summary><p>New listings remain pending until an administrator verifies the owner and approves the land details. Approved listings become available in Find Land.</p></details>
+          <details id="faq-nearby-results"><summary><span>How are nearby land results ranked?</span><a href="#faq-nearby-results" class="faq-question-link" aria-label="Copy link to this question" onclick="event.stopPropagation()"><i class="bi bi-link-45deg" aria-hidden="true"></i></a><i class="bi bi-plus-lg" aria-hidden="true"></i></summary><p>When coordinates are available, results are ranked by geographic distance. Text similarity is used as a fallback for older listings without coordinates.</p></details>
+          <details id="faq-lease-request"><summary><span>How does a farmer request a lease?</span><a href="#faq-lease-request" class="faq-question-link" aria-label="Open link to this question" onclick="event.stopPropagation()"><i class="bi bi-link-45deg" aria-hidden="true"></i></a><i class="bi bi-plus-lg" aria-hidden="true"></i></summary><p>Open an approved listing in Find Land, review its details, and submit a lease request with a message to the owner.</p></details>
+          <details id="faq-owner-land"><summary><span>When can an owner add land?</span><a href="#faq-owner-land" class="faq-question-link" aria-label="Open link to this question" onclick="event.stopPropagation()"><i class="bi bi-link-45deg" aria-hidden="true"></i></a><i class="bi bi-plus-lg" aria-hidden="true"></i></summary><p>After Admin verifies the owner documents, the Add Land workflow becomes available in the Owner Dashboard.</p></details>
+        </div></div>
+        <div class="faq-group"><p class="faq-group-label">Crop health</p><div class="faq-list">
+          <details id="faq-diagnosis-image"><summary><span>How should I upload a diagnosis image?</span><a href="#faq-diagnosis-image" class="faq-question-link" aria-label="Copy link to this question" onclick="event.stopPropagation()"><i class="bi bi-link-45deg" aria-hidden="true"></i></a><i class="bi bi-plus-lg" aria-hidden="true"></i></summary><p>Use a clear, well-lit image focused on the affected leaf or plant. Avoid severe blur, heavy shadows, and images where the plant is too small.</p></details>
+          <details id="faq-ai-advice"><summary><span>Are AI recommendations a replacement for an expert?</span><a href="#faq-ai-advice" class="faq-question-link" aria-label="Copy link to this question" onclick="event.stopPropagation()"><i class="bi bi-link-45deg" aria-hidden="true"></i></a><i class="bi bi-plus-lg" aria-hidden="true"></i></summary><p>No. AI results are decision-support guidance. For severe damage, uncertain diagnosis, or chemical treatment, consult a qualified agricultural professional.</p></details>
+          <details id="faq-crop-recommendation"><summary><span>What information improves crop recommendations?</span><a href="#faq-crop-recommendation" class="faq-question-link" aria-label="Open link to this question" onclick="event.stopPropagation()"><i class="bi bi-link-45deg" aria-hidden="true"></i></a><i class="bi bi-plus-lg" aria-hidden="true"></i></summary><p>Provide accurate soil nutrients, pH, rainfall, temperature, humidity, and location information for more useful recommendations.</p></details>
+          <details id="faq-weather"><summary><span>Where can I find weather and forecast information?</span><a href="#faq-weather" class="faq-question-link" aria-label="Open link to this question" onclick="event.stopPropagation()"><i class="bi bi-link-45deg" aria-hidden="true"></i></a><i class="bi bi-plus-lg" aria-hidden="true"></i></summary><p>Use the Weather pages from the Features menu to view current conditions, forecasts, and agricultural weather alerts.</p></details>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+  document.querySelectorAll('.faq-list details').forEach((item) => {
+    item.addEventListener('toggle', () => {
+      if (!item.open) return;
+      document.querySelectorAll('.faq-list details').forEach((other) => {
+        if (other !== item) other.open = false;
+      });
+    });
+  });
+  const linkedQuestion = document.getElementById(window.location.hash.slice(1));
+  if (linkedQuestion && linkedQuestion.tagName === 'DETAILS') {
+    linkedQuestion.open = true;
+    linkedQuestion.scrollIntoView({block: 'center'});
+  }
+</script>
+{% endblock %}

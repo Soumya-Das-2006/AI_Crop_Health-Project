@@ -1,175 +1,42 @@
 {% extends "layouts/layout.html" %}
 {% load static %}
 
-{% block title %}Search Land - AgriCulture{% endblock %}
+{% block title %}Find Agricultural Land - AgriCulture{% endblock %}
 {% block body_class %}agrolease-search-land-page{% endblock %}
 
 {% block content %}
-
-<div class="page-title dark-background"
-     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
   <div class="container position-relative">
-    <h1>Search Agricultural Land</h1>
-    <p>Find suitable land for your farming needs</p>
-    <nav class="breadcrumbs">
-      <ol>
-        <li><a href="{% url 'index' %}">Home</a></li>
-        <li><a href="/">AgroLease</a></li>
-        <li class="current">Search Land</li>
-      </ol>
-    <a href="{% url \'agrolease:logout\' %}" class="btn btn-outline-danger ms-2">Logout</a>\1
+    <h1>Find Agricultural Land</h1>
+    <p>Search verified parcels by location, soil, and rent</p>
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="{% url 'index' %}">Home</a></li><li><a href="{% url 'agrolease:farmer_dashboard' %}">Farmer Dashboard</a></li><li class="current" aria-current="page">Find Land</li></ol></nav>
   </div>
 </div>
 
-<section class="section">
+<section class="agrolease-search-section">
   <div class="container">
-    <!-- Header -->
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800">Search Agricultural Land</h1>
-        <p class="text-gray-600 mt-2">Find suitable land for your farming needs</p>
+    {% with farmer_nav_page='search' %}{% include 'agrolease/farmer_nav.html' %}{% endwith %}
+    <div class="agrolease-search-intro"><div><p class="agrolease-eyebrow">Land marketplace</p><h2>Find the right parcel</h2><p>Search by a city, district, or state. Similar location names are ranked automatically.</p></div></div>
+    <form method="get" class="agrolease-search-form">
+      <div class="agrolease-search-field agrolease-search-location"><label for="location"><i class="bi bi-geo-alt" aria-hidden="true"></i> Location</label><input type="search" id="location" name="location" value="{{ filters.location }}" placeholder="e.g. Kolkata, Mysore, Karnataka" autocomplete="off"></div>
+      <div class="agrolease-search-field"><label for="soil_type">Soil type</label><select id="soil_type" name="soil_type"><option value="">All soil types</option><option value="red" {% if filters.soil_type == 'red' %}selected{% endif %}>Red soil</option><option value="black" {% if filters.soil_type == 'black' %}selected{% endif %}>Black soil</option><option value="alluvial" {% if filters.soil_type == 'alluvial' %}selected{% endif %}>Alluvial soil</option><option value="laterite" {% if filters.soil_type == 'laterite' %}selected{% endif %}>Laterite soil</option><option value="sandy" {% if filters.soil_type == 'sandy' %}selected{% endif %}>Sandy soil</option><option value="clay" {% if filters.soil_type == 'clay' %}selected{% endif %}>Clay soil</option></select></div>
+      <div class="agrolease-search-field"><label for="rent_range">Rent range</label><select id="rent_range" name="rent_range"><option value="">Any range</option><option value="under_20000" {% if filters.rent_range == 'under_20000' %}selected{% endif %}>Under ₹20,000</option><option value="20000_40000" {% if filters.rent_range == '20000_40000' %}selected{% endif %}>₹20,000 - ₹40,000</option><option value="above_40000" {% if filters.rent_range == 'above_40000' %}selected{% endif %}>Above ₹40,000</option></select></div>
+      <button type="submit" class="agrolease-primary-action"><i class="bi bi-search" aria-hidden="true"></i> Search land</button>
+    </form>
+
+    <div class="agrolease-results-heading"><div><p class="agrolease-eyebrow">Available now</p><h3>{{ lands|length }} land{{ lands|length|pluralize }} found</h3>{% if search_note %}<p class="agrolease-search-note"><i class="bi bi-info-circle" aria-hidden="true"></i> {{ search_note }}</p>{% endif %}</div><a href="{% url 'agrolease:search_land' %}" class="agrolease-clear-search">Clear filters</a></div>
+    {% if lands %}
+    <div class="agrolease-search-results-grid">
+      {% for land in lands %}
+      <article class="agrolease-search-card">
+        <div class="agrolease-search-card-visual">{% if land.image %}<img src="{{ land.image.url }}" alt="Land in {{ land.location }}">{% else %}<i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>{% endif %}<span>Verified listing</span></div>
+        <div class="agrolease-search-card-body"><div class="agrolease-search-card-title"><div><h4>{{ land.location }}</h4><p><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ land.water_source }} water source{% if land.distance_km != None %} · {{ land.distance_km|floatformat:1 }} km away{% endif %}</p></div><strong>₹{{ land.rent_amount|floatformat:0 }}</strong></div><div class="agrolease-search-facts"><span><b>Size</b>{{ land.size_acres }} acres</span><span><b>Soil</b>{{ land.soil_type }}</span><span><b>Term</b>{{ land.duration_months }} months</span></div><p class="agrolease-crops"><i class="bi bi-flower1" aria-hidden="true"></i> Suitable for {{ land.suitable_crops }}</p><a href="{% url 'agrolease:request_lease' land.id %}" class="agrolease-primary-action">Request this land <i class="bi bi-arrow-right" aria-hidden="true"></i></a></div>
+      </article>
+      {% endfor %}
     </div>
-
-    <!-- Search Filters -->
-    <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-        <form method="get" class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <!-- Location Filter -->
-                <div>
-                    <label for="location" class="block text-sm font-medium text-gray-700 mb-1">
-                        Location
-                    </label>
-                    <input
-                        type="text"
-                        id="location"
-                        name="location"
-                        value="{{ filters.location }}"
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        placeholder="District, State"
-                    >
-                </div>
-
-                <!-- Soil Type Filter -->
-                <div>
-                    <label for="soil_type" class="block text-sm font-medium text-gray-700 mb-1">
-                        Soil Type
-                    </label>
-                    <select
-                        id="soil_type"
-                        name="soil_type"
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                    >
-                        <option value="">All Soil Types</option>
-                        <option value="red" {% if filters.soil_type == 'red' %}selected{% endif %}>Red Soil</option>
-                        <option value="black" {% if filters.soil_type == 'black' %}selected{% endif %}>Black Soil</option>
-                        <option value="alluvial" {% if filters.soil_type == 'alluvial' %}selected{% endif %}>Alluvial Soil</option>
-                        <option value="laterite" {% if filters.soil_type == 'laterite' %}selected{% endif %}>Laterite Soil</option>
-                        <option value="sandy" {% if filters.soil_type == 'sandy' %}selected{% endif %}>Sandy Soil</option>
-                        <option value="clay" {% if filters.soil_type == 'clay' %}selected{% endif %}>Clay Soil</option>
-                    </select>
-                </div>
-
-                <!-- Rent Range Filter -->
-                <div>
-                    <label for="rent_range" class="block text-sm font-medium text-gray-700 mb-1">
-                        Rent Range
-                    </label>
-                    <select
-                        id="rent_range"
-                        name="rent_range"
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                    >
-                        <option value="">Any Range</option>
-                        <option value="under_20000" {% if filters.rent_range == 'under_20000' %}selected{% endif %}>Under ₹20,000</option>
-                        <option value="20000_40000" {% if filters.rent_range == '20000_40000' %}selected{% endif %}>₹20,000 - ₹40,000</option>
-                        <option value="above_40000" {% if filters.rent_range == 'above_40000' %}selected{% endif %}>Above ₹40,000</option>
-                    </select>
-                </div>
-
-                <!-- Search Button -->
-                <div class="flex items-end">
-                    <button
-                        type="submit"
-                        class="w-full bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium"
-                    >
-                        Search Land
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
-
-    <!-- Results Header -->
-    <div class="mb-6">
-        <h2 class="text-2xl font-bold text-gray-800">Available Land</h2>
-        <p class="text-gray-600 mt-1">{{ lands|length }} lands found</p>
-    </div>
-
-    <!-- Land Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {% for land in lands %}
-        <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
-            <!-- Land Image -->
-            <div class="h-48 bg-gray-200 flex items-center justify-center">
-                <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                </svg>
-            </div>
-
-            <!-- Land Details -->
-            <div class="p-6">
-                <div class="flex justify-between items-start mb-3">
-                    <h3 class="text-lg font-semibold text-gray-900">{{ land.location }}</h3>
-                    <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Verified</span>
-                </div>
-
-                <div class="space-y-2 mb-4">
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">Size:</span>
-                        <span class="font-medium">{{ land.size }}</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">Soil:</span>
-                        <span class="font-medium">{{ land.soil_type }}</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">Water:</span>
-                        <span class="font-medium">{{ land.water_source }}</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">Crops:</span>
-                        <span class="font-medium">{{ land.suitable_crops }}</span>
-                    </div>
-                </div>
-
-                <div class="border-t pt-4">
-                    <div class="flex justify-between items-center mb-3">
-                        <div>
-                            <p class="text-2xl font-bold text-green-600">{{ land.rent }}</p>
-                            <p class="text-xs text-gray-500">{{ land.duration }}</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-sm text-gray-600">Owner</p>
-                            <p class="font-medium">{{ land.owner }}</p>
-                        </div>
-                    </div>
-
-                    <a href="{% url 'agrolease:request_lease' land.id %}" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium text-center block">
-                        Request Lease
-                    </a>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-
-    {% if not lands %}
-    <div class="text-center py-12">
-        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.203-2.47M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>
-        <h3 class="mt-2 text-sm font-medium text-gray-900">No lands found</h3>
-        <p class="mt-1 text-sm text-gray-500">Try adjusting your search filters.</p>
-    </div>
+    {% else %}
+    <div class="agrolease-search-empty"><div class="agrolease-empty-icon"><i class="bi bi-search" aria-hidden="true"></i></div><h4>No matching land found</h4><p>{{ search_note|default:"Try a broader location, another soil type, or clear one of the filters." }}</p><a href="{% url 'agrolease:search_land' %}" class="agrolease-secondary-action">Reset search</a></div>
     {% endif %}
-</div>
+  </div>
+</section>
 {% endblock %}

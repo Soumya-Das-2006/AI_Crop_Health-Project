@@ -11,29 +11,27 @@
   <div class="container position-relative">
     <h1>AgroLease Register</h1>
     <p>Create your account to get started with agricultural land leasing</p>
-    <nav class="breadcrumbs">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
       <ol>
         <li><a href="{% url 'index' %}">Home</a></li>
-        <li><a href="/">AgroLease</a></li>
-        <li class="current">Register</li>
+                <li><a href="{% url 'agrolease:role_selection' %}">AgroLease</a></li>
+                <li class="current" aria-current="page">Register</li>
       </ol>
-    <a href="{% url \'agrolease:logout\' %}" class="btn btn-outline-danger ms-2">Logout</a>\1
+        </nav>
   </div>
 </div>
 
-<section class="section">
+<section class="agrolease-auth-section">
   <div class="container">
-    <div class="row justify-content-center">
-      <div class="col-lg-6">
-        <div class="bg-white rounded-lg shadow-lg p-6">
-            <div class="text-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-800">Join AgroLease</h2>
-                <p class="text-gray-600 mt-2">Create your account to get started</p>
+        <div class="agrolease-auth-card">
+            <div class="agrolease-auth-heading">
+                <h2>Join AgroLease</h2>
+                <p>Create your account to get started.</p>
             </div>
 
             
 {% if messages %}
-<div class="messages mb-4">
+<div class="agrolease-messages">
     {% for message in messages %}
     <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
         {{ message }}
@@ -42,11 +40,11 @@
     {% endfor %}
 </div>
 {% endif %}
-\1
+            <form method="post" enctype="multipart/form-data" class="agrolease-form">
                 {% csrf_token %}
 
-                <div>
-                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">
+                <div class="agrolease-field">
+                    <label for="name">
                         Full Name
                     </label>
                     <input
@@ -54,17 +52,16 @@
                         id="name"
                         name="name"
                         required
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
                         placeholder="Enter your full name"
                     >
                 </div>
 
-                <div>
-                    <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">
+                <div class="agrolease-field">
+                    <label for="phone">
                         Mobile Number
                     </label>
-                    <div class="flex">
-                        <span class="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md">
+                    <div class="agrolease-phone-field">
+                        <span class="agrolease-phone-prefix">
                             +91
                         </span>
                         <input
@@ -72,60 +69,76 @@
                             id="phone"
                             name="phone"
                             required
-                            pattern="[6-9][0-9]{9}"
-                            class="flex-1 min-w-0 block w-full px-3 py-2 border border-gray-300 rounded-none rounded-r-md focus:ring-green-500 focus:border-green-500"
-                            placeholder="Enter 10-digit number"
+                            pattern="(?:\+91[\s-]?)?[6-9][0-9]{9}"
+                            placeholder="10 digits or +91 10 digits"
+                            inputmode="tel"
                         >
                     </div>
                 </div>
 
-                <div>
-                    <label for="role" class="block text-sm font-medium text-gray-700 mb-1">
+                <div class="agrolease-field">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email">
+                </div>
+
+                <div class="agrolease-field">
+                    <label for="role">
                         I am a
                     </label>
                     <select
                         id="role"
                         name="role"
                         required
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
                     >
                         <option value="">Select your role</option>
                         <option value="owner">Land Owner</option>
                         <option value="farmer">Farmer</option>
                     </select>
                 </div>
+                <p class="agrolease-verification-note"><i class="bi bi-shield-check" aria-hidden="true"></i> Land Owners are verified by an administrator before they can publish land listings.</p>
 
-                <div>
-                    <label for="location" class="block text-sm font-medium text-gray-700 mb-1">
-                        Location
-                    </label>
-                    <input
-                        type="text"
-                        id="location"
-                        name="location"
-                        required
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        placeholder="Village, District, State"
-                    >
+                <div id="owner-verification-documents" class="agrolease-registration-land-details" hidden>
+                    <div class="agrolease-registration-section-heading"><span>Owner verification documents</span><small>Required for land-owner accounts. Admin will review these before approval.</small></div>
+                    <div class="agrolease-registration-grid">
+                        <div class="agrolease-field agrolease-registration-full"><label for="government_id_type">Government ID type <span>*</span></label><select id="government_id_type" name="government_id_type"><option value="">Select document type</option><option value="aadhaar">Aadhaar card</option><option value="pan">PAN card</option><option value="voter_id">Voter ID</option><option value="passport">Passport</option></select></div>
+                        <div class="agrolease-field"><label for="government_id_document">Government ID file <span>*</span></label><input type="file" id="government_id_document" name="government_id_document" accept="image/*,.pdf"></div>
+                        <div class="agrolease-field"><label for="ownership_proof">Land ownership proof <span>*</span></label><input type="file" id="ownership_proof" name="ownership_proof" accept="image/*,.pdf"></div>
+                        <div class="agrolease-field"><label for="address_proof">Address proof <span>*</span></label><input type="file" id="address_proof" name="address_proof" accept="image/*,.pdf"></div>
+                        <div class="agrolease-field"><label for="selfie_photo">Owner selfie <small>(optional)</small></label><input type="file" id="selfie_photo" name="selfie_photo" accept="image/*"></div>
+                    </div>
                 </div>
 
                 <button
                     type="submit"
-                    class="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium"
+                    class="agrolease-submit"
                 >
                     Create Account
                 </button>
             </form>
 
-            <div class="text-center mt-6">
-                <p class="text-gray-600 text-sm">
+                        <script>
+                            const roleField = document.getElementById('role');
+                            const verificationDocuments = document.getElementById('owner-verification-documents');
+                            const verificationInputs = verificationDocuments.querySelectorAll('input, select');
+                            function toggleVerificationDocuments() {
+                                const isOwner = roleField.value === 'owner';
+                                verificationDocuments.hidden = !isOwner;
+                                verificationInputs.forEach((input) => { input.required = isOwner && input.id !== 'selfie_photo'; });
+                            }
+                            roleField.addEventListener('change', toggleVerificationDocuments);
+                            toggleVerificationDocuments();
+                        </script>
+
+            <div class="agrolease-auth-footer">
+                <p>
                     Already have an account?
-                    <a href="{% url 'agrolease:login' %}" class="text-green-600 hover:text-green-700 font-medium">
+                    <a href="{% url 'agrolease:login' %}">
                         Login here
                     </a>
                 </p>
-            </div>
+                </div>
         </div>
     </div>
 </div>
+</section>
 {% endblock %}

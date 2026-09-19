@@ -1,0 +1,123 @@
+{% extends 'layouts/layout.html' %}
+{% load static %}
+{% block title %}{{ product.name }} - AgriCulture{% endblock %}
+{% block body_class %}marketplace-page{% endblock %}
+{% block extra_css %}
+{% endblock %}
+{% block content %}
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>{{ product.name }}</h1>
+    <p>{{ product.category.name }} essentials for smarter farming.</p>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li><a href="{% url 'marketplace:catalog' %}">Marketplace</a></li>
+        <li class="current" aria-current="page">{{ product.name }}</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+<section class="marketplace-section py-5">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'marketplace:catalog' %}">Marketplace</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'marketplace:category' product.category.slug %}">{{ product.category.name }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
+            </ol>
+        </nav>
+
+        <div class="row mt-4">
+            <!-- Product Images -->
+            <div class="col-md-6 mb-4">
+                <div class="product-gallery">
+                    <div class="main-image mb-3 border rounded overflow-hidden text-center bg-white p-3">
+                        {% if product.image %}
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-fluid" style="max-height: 400px; object-fit: contain;">
+                        {% else %}
+                        <i class="bi bi-image text-muted" style="font-size: 8rem;"></i>
+                        {% endif %}
+                    </div>
+                    {% if product.images.all %}
+                    <div class="thumbnail-gallery d-flex gap-2 overflow-auto">
+                        {% if product.image %}
+                        <img src="{{ product.image.url }}" class="img-thumbnail border-primary" style="width: 80px; height: 80px; object-fit: cover; cursor: pointer;">
+                        {% endif %}
+                        {% for img in product.images.all %}
+                        <img src="{{ img.image.url }}" class="img-thumbnail" style="width: 80px; height: 80px; object-fit: cover; cursor: pointer;">
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Product Info -->
+            <div class="col-md-6">
+                {% if product.is_featured %}
+                <span class="badge bg-warning text-dark mb-2">Featured</span>
+                {% endif %}
+                <h1 class="h2 fw-bold">{{ product.name }}</h1>
+                <p class="text-muted mb-2">SKU: {{ product.sku|default:"N/A" }} | Category: {{ product.category.name }}</p>
+                
+                <div class="pricing-block mt-4 mb-4 p-3 bg-light rounded">
+                    {% if product.discount_percentage > 0 %}
+                    <div class="text-danger fw-bold mb-1">{{ product.discount_percentage }}% OFF</div>
+                    {% endif %}
+                    <div class="d-flex align-items-end gap-3">
+                        <h2 class="text-primary fw-bold mb-0">₹{{ product.price|floatformat:2 }}</h2>
+                        {% if product.mrp > product.price %}
+                        <h5 class="text-muted text-decoration-line-through mb-1">M.R.P.: ₹{{ product.mrp|floatformat:2 }}</h5>
+                        {% endif %}
+                    </div>
+                    <p class="text-muted mt-1 mb-0">Inclusive of all taxes</p>
+                </div>
+
+                <div class="stock-status mb-4">
+                    {% if product.stock > 10 %}
+                    <h5 class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> In Stock</h5>
+                    {% elif product.stock > 0 %}
+                    <h5 class="text-warning fw-bold"><i class="bi bi-exclamation-triangle-fill"></i> Only {{ product.stock }} left in stock - order soon.</h5>
+                    {% else %}
+                    <h5 class="text-danger fw-bold"><i class="bi bi-x-circle-fill"></i> Out of Stock</h5>
+                    {% endif %}
+                </div>
+
+                <!-- Purchase Form -->
+                {% if product.stock > 0 %}
+                <form method="post" action="{% url 'marketplace:add_to_cart' product.slug %}" class="purchase-form mb-5">
+                    {% csrf_token %}
+                    <div class="d-flex align-items-center gap-3 mb-4">
+                        <label for="quantity" class="fw-bold">Quantity:</label>
+                        <select name="quantity" id="quantity" class="form-select w-auto">
+                            {% for i in "123456789"|make_list %}
+                                {% if forloop.counter <= product.stock %}
+                                <option value="{{ forloop.counter }}">{{ forloop.counter }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex">
+                        <button type="submit" class="btn btn-outline-primary btn-lg px-5">
+                            <i class="bi bi-cart-plus"></i> Add to Cart
+                        </button>
+                        <button type="submit" name="buy_now" value="true" class="btn btn-primary btn-lg px-5">
+                            <i class="bi bi-lightning-fill"></i> Buy Now
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+
+                <!-- Description -->
+                <div class="product-description mt-4">
+                    <h4 class="fw-bold border-bottom pb-2">Product Details</h4>
+                    <div class="mt-3" style="line-height: 1.6;">
+                        {{ product.description|linebreaks }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

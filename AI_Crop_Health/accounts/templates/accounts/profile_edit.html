@@ -1,0 +1,15 @@
+{% extends 'layouts/layout.html' %}
+{% load static %}
+
+{% block title %}Complete Profile - AI Crop Health Platform{% endblock %}
+{% block body_class %}accounts-farmer-page{% endblock %}
+
+{% block content %}
+<main class="accounts-farmer-shell">
+  <div class="container accounts-profile-form-shell">
+    <div class="accounts-section-heading"><div><span class="accounts-eyebrow">Account settings</span><h2>Complete your profile</h2></div><a href="{% url 'accounts:dashboard' %}" class="accounts-card-link">Back to workspace</a></div>
+    {% if messages %}<div class="accounts-alerts">{% for message in messages %}<div class="alert alert-{{ message.tags }}" role="alert">{{ message }}</div>{% endfor %}</div>{% endif %}
+    <form method="post" class="accounts-profile-form">{% csrf_token %}<label for="profile-name">Full name<input id="profile-name" name="name" value="{{ request.user.first_name }}" required></label><label for="profile-email">Email address<input id="profile-email" type="email" name="email" value="{{ request.user.email }}" required></label><label for="profile-phone">Mobile number<input id="profile-phone" type="tel" name="phone" value="{{ profile.phone_number }}" pattern="[6-9][0-9]{9}" required></label><div class="accounts-profile-form-actions"><button type="submit" class="accounts-profile-save"><i class="bi bi-check2" aria-hidden="true"></i> Save profile</button><a href="{% url 'accounts:dashboard' %}" class="accounts-profile-cancel">Cancel</a></div></form>
+  </div>
+</main>
+{% endblock %}

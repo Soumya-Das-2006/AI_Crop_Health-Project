@@ -1,0 +1,591 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Government Schemes - AgriCulture{% endblock %}
+{% block body_class %}schemes-home-page{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'features/schemes_home.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- Page Title -->
+<div class="page-title dark-background" data-aos="fade"
+    style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Government Schemes</h1>
+    <p>Explore all government schemes for farmers and check your eligibility</p>
+    <nav class="breadcrumbs">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li class="current">Government Schemes</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+<!-- End Page Title -->
+
+<section class="section schemes-home-section">
+  <div class="schemes-main-container">
+    <!-- Top Info Bar -->
+    <div class="top-info-bar fade-in">
+      <h2>All Government Schemes</h2>
+      <p>Find and check eligibility for various agricultural schemes. Select a scheme to view details or check your eligibility.</p>
+    </div>
+
+    <!-- Main Content Section -->
+    <div class="schemes-section">
+      <!-- Left Column: Schemes List -->
+      <div class="schemes-left">
+        <!-- Search Box -->
+        <div class="search-box">
+          <input type="text" 
+                 id="searchInput" 
+                 placeholder="Search schemes by name or ministry...">
+        </div>
+
+        <!-- Schemes Table -->
+        <div class="schemes-table-container">
+          <table class="schemes-table">
+            <thead>
+              <tr>
+                <th>Scheme Name</th>
+                <th>Ministry/Department</th>
+                <th>Budget (₹ Cr)</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="schemesTableBody">
+              <tr>
+                <td colspan="4" style="text-align: center; padding: 3rem;">
+                  <div class="loading">Loading schemes...</div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="table-footer">
+            <p id="schemesCount">Showing 0 schemes</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Eligibility Checker -->
+      <div class="schemes-right">
+        <div class="eligibility-checker">
+          <h3>Check Your Eligibility</h3>
+          
+          <div class="form-group">
+            <label for="farmerType">Type of Farmer</label>
+            <select class="form-control" id="farmerType">
+              <option value="">Select Farmer Type</option>
+              <option value="small">Small Farmer (Less than 2 hectares)</option>
+              <option value="marginal">Marginal Farmer (Less than 1 hectare)</option>
+              <option value="medium">Medium Farmer (2-10 hectares)</option>
+              <option value="large">Large Farmer (More than 10 hectares)</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="cropType">Main Crop Type</label>
+            <select class="form-control" id="cropType">
+              <option value="">Select Crop Type</option>
+              <option value="rice">Rice</option>
+              <option value="wheat">Wheat</option>
+              <option value="sugarcane">Sugarcane</option>
+              <option value="cotton">Cotton</option>
+              <option value="vegetables">Vegetables</option>
+              <option value="fruits">Fruits</option>
+              <option value="other">Other Crops</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="landOwnership">Land Ownership</label>
+            <select class="form-control" id="landOwnership">
+              <option value="">Select Ownership Type</option>
+              <option value="owned">Own Land</option>
+              <option value="leased">Leased Land</option>
+              <option value="shared">Shared Cropping</option>
+              <option value="landless">Landless Laborer</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="annualIncome">Annual Income</label>
+            <select class="form-control" id="annualIncome">
+              <option value="">Select Income Group</option>
+              <option value="below1">Below ₹1 Lakh</option>
+              <option value="1to3">₹1-3 Lakhs</option>
+              <option value="3to5">₹3-5 Lakhs</option>
+              <option value="above5">Above ₹5 Lakhs</option>
+            </select>
+          </div>
+          
+          <button class="check-eligibility-btn" id="checkEligibilityBtn">
+            CHECK ELIGIBILITY FOR SELECTED SCHEME
+          </button>
+          
+          <!-- Eligibility Result -->
+          <div class="eligibility-result" id="eligibilityResult">
+            <div id="resultContent"></div>
+            <div class="result-tips" id="resultTips">
+              <h5>Important Note:</h5>
+              <p>This is an indicative check. For final confirmation, visit your nearest Agriculture Extension Office.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Information Cards -->
+    <div class="info-cards">
+      <div class="info-card">
+        <h3>About Agricultural Schemes</h3>
+        <p>Government schemes provide farmers with technical assistance, subsidies on seeds and fertilizers, infrastructure development and marketing support. These programs aim to increase agricultural productivity and improve farmers' livelihoods across India.</p>
+      </div>
+      
+      <div class="info-card">
+        <h3>Scheme Implementation</h3>
+        <p>Schemes are implemented through state agricultural departments with banks, insurance companies, and local bodies. Funds are directly transferred to beneficiaries' accounts through Direct Benefit Transfer (DBT) for transparency and efficiency.</p>
+      </div>
+    </div>
+
+    <!-- How to Apply -->
+    <div class="how-to-apply">
+      <h3>How to Apply</h3>
+      <ol>
+        <li>Check your eligibility using the form</li>
+        <li>Gather required documents (Aadhaar, Land records)</li>
+        <li>Visit nearest Agriculture Extension Office</li>
+        <li>Submit application with documents</li>
+        <li>Track application status online</li>
+      </ol>
+      <p style="margin-top: 1rem; color: #666; font-style: italic;">
+        To apply, contact the implementing agency with required documents.
+      </p>
+    </div>
+
+    <!-- Contact Information -->
+    <div class="contact-cards">
+      <div class="contact-card">
+        <i class="fas fa-phone-alt"></i>
+        <h4>Kisan Call Center</h4>
+        <p>Toll-Free: 1551</p>
+        <p>1800-180-1551</p>
+      </div>
+      
+      <div class="contact-card">
+        <i class="fas fa-globe"></i>
+        <h4>Agriculture Department</h4>
+        <p>agriculture.gov.in</p>
+        <p>Email: help@agriculture.gov.in</p>
+      </div>
+      
+      <div class="contact-card">
+        <i class="fas fa-headset"></i>
+        <h4>State Helpline</h4>
+        <p>Contact your District</p>
+        <p>Agriculture Office</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Scheme Details Modal -->
+<div class="scheme-details-modal" id="schemeDetailsModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="modalSchemeName">Scheme Details</h3>
+      <button class="close-modal" id="closeModalBtn">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody">
+      <!-- Details will be loaded here -->
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Initial data passed from Django
+const SCHEMES_DATA = {{ initial_schemes|safe }};
+
+// Simple Schemes Manager
+class SchemesManager {
+    constructor() {
+        this.schemes = SCHEMES_DATA || [];
+        this.selectedScheme = null;
+        this.filteredSchemes = [];
+    }
+    
+    init() {
+        // Sort schemes by ID descending to show newest first
+        this.schemes.sort((a, b) => b.id - a.id);
+        this.renderSchemes();
+        this.setupEventListeners();
+    }
+    
+    setupEventListeners() {
+        // Search input
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            this.searchSchemes(e.target.value);
+        });
+        
+        // Check eligibility button
+        document.getElementById('checkEligibilityBtn').addEventListener('click', () => {
+            this.checkEligibility();
+        });
+        
+        // Close modal button
+        document.getElementById('closeModalBtn').addEventListener('click', () => {
+            this.closeModal();
+        });
+        
+        // Close modal on outside click
+        document.getElementById('schemeDetailsModal').addEventListener('click', (e) => {
+            if (e.target.id === 'schemeDetailsModal') {
+                this.closeModal();
+            }
+        });
+    }
+    
+    renderSchemes() {
+        const tbody = document.getElementById('schemesTableBody');
+        const countElement = document.getElementById('schemesCount');
+        
+        if (this.schemes.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="text-align: center; padding: 2rem; color: #666;">
+                        No schemes available. Please check back later.
+                    </td>
+                </tr>
+            `;
+            countElement.textContent = 'No schemes found';
+            return;
+        }
+        
+        this.filteredSchemes = [...this.schemes];
+        
+        let html = '';
+        this.filteredSchemes.forEach(scheme => {
+            html += `
+                <tr class="scheme-row">
+                    <td>
+                        <div class="scheme-name">${scheme.name}</div>
+                        <div class="scheme-category">${scheme.category_name || ''}</div>
+                    </td>
+                    <td class="scheme-ministry">${scheme.ministry}</td>
+                    <td class="scheme-budget">₹${scheme.budget}</td>
+                    <td>
+                        <button class="view-details-btn" data-id="${scheme.id}">
+                            View Details
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+        countElement.textContent = `Showing ${this.filteredSchemes.length} scheme${this.filteredSchemes.length !== 1 ? 's' : ''}`;
+        
+        // Add event listeners to view details buttons
+        document.querySelectorAll('.view-details-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const schemeId = e.target.getAttribute('data-id');
+                this.viewSchemeDetails(parseInt(schemeId));
+            });
+        });
+    }
+    
+    searchSchemes(searchTerm) {
+        if (!searchTerm) {
+            this.filteredSchemes = [...this.schemes];
+        } else {
+            const term = searchTerm.toLowerCase();
+            this.filteredSchemes = this.schemes.filter(scheme => 
+                scheme.name.toLowerCase().includes(term) ||
+                scheme.ministry.toLowerCase().includes(term) ||
+                (scheme.category_name && scheme.category_name.toLowerCase().includes(term))
+            );
+        }
+        
+        this.renderFilteredSchemes();
+    }
+    
+    renderFilteredSchemes() {
+        const tbody = document.getElementById('schemesTableBody');
+        const countElement = document.getElementById('schemesCount');
+        
+        if (this.filteredSchemes.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="text-align: center; padding: 2rem; color: #666;">
+                        No schemes found matching your search.
+                    </td>
+                </tr>
+            `;
+            countElement.textContent = 'No schemes found';
+            return;
+        }
+        
+        let html = '';
+        this.filteredSchemes.forEach(scheme => {
+            html += `
+                <tr class="scheme-row">
+                    <td>
+                        <div class="scheme-name">${scheme.name}</div>
+                        <div class="scheme-category">${scheme.category_name || ''}</div>
+                    </td>
+                    <td class="scheme-ministry">${scheme.ministry}</td>
+                    <td class="scheme-budget">₹${scheme.budget}</td>
+                    <td>
+                        <button class="view-details-btn" data-id="${scheme.id}">
+                            View Details
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+        countElement.textContent = `Showing ${this.filteredSchemes.length} scheme${this.filteredSchemes.length !== 1 ? 's' : ''}`;
+        
+        // Re-add event listeners
+        document.querySelectorAll('.view-details-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const schemeId = e.target.getAttribute('data-id');
+                this.viewSchemeDetails(parseInt(schemeId));
+            });
+        });
+    }
+    
+    async viewSchemeDetails(schemeId) {
+        try {
+            // Show loading state in modal
+            document.getElementById('modalBody').innerHTML = '<div class="loading">Loading scheme details...</div>';
+            document.getElementById('schemeDetailsModal').classList.add('show');
+            
+            // Make API call
+            const response = await fetch(`/schemes/api/scheme/${schemeId}/`);
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.selectedScheme = data.scheme;
+                this.showSchemeDetails(data.scheme);
+            } else {
+                throw new Error(data.error || 'Failed to load scheme details');
+            }
+        } catch (error) {
+            console.error('Error loading scheme details:', error);
+            document.getElementById('modalBody').innerHTML = `
+                <div style="text-align: center; padding: 2rem; color: #666;">
+                    <p>Error loading scheme details. Please try again.</p>
+                    <p>Error: ${error.message}</p>
+                </div>
+            `;
+        }
+    }
+    
+    showSchemeDetails(scheme) {
+        document.getElementById('modalSchemeName').textContent = scheme.name;
+        
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <div class="scheme-detail-section">
+                <h4>Ministry/Department</h4>
+                <p>${scheme.ministry}</p>
+            </div>
+            
+            <div class="scheme-detail-section">
+                <h4>Budget</h4>
+                <p>₹${scheme.budget_display || scheme.budget || 'N/A'}</p>
+            </div>
+            
+            <div class="scheme-detail-section">
+                <h4>Description</h4>
+                <p>${scheme.description || 'No description available.'}</p>
+            </div>
+            
+            <div class="scheme-detail-section">
+                <h4>Benefits</h4>
+                <p>${scheme.benefits || 'No benefits information available.'}</p>
+            </div>
+            
+            <div class="scheme-detail-section">
+                <h4>Eligibility Criteria</h4>
+                <p>${scheme.eligibility || 'No eligibility criteria available.'}</p>
+            </div>
+            
+            <div class="scheme-detail-section">
+                <h4>How to Apply</h4>
+                <p>${scheme.application_process || 'No application process information available.'}</p>
+            </div>
+            
+            ${scheme.contact_info ? `
+            <div class="scheme-detail-section">
+                <h4>Contact Information</h4>
+                <p>${scheme.contact_info}</p>
+            </div>
+            ` : ''}
+
+            ${scheme.website_url ? `
+            <div class="scheme-detail-section">
+                <h4>Apply Online</h4>
+                <p><a href="${scheme.website_url}" class="apply-link">Click here to apply online <i class="fas fa-external-link-alt"></i></a></p>
+                <p><a href="/schemes/${scheme.slug}/" target="_blank"
+                   class="btn btn-outline-primary w-100">
+                   Open full Scheme Details Page
+                </a>
+                </p>
+            </div>
+            ` : ''}
+           
+            ${typeof scheme.slug === "string" && scheme.slug.length > 0 ? `
+            <div class="scheme-detail-section">
+                <h4>More Details</h4>
+                <a href="/schemes/${encodeURIComponent(scheme.slug)}/"
+                target="_blank"
+                class="btn btn-outline-primary w-100">
+                Open full Scheme Details Page
+                </a>
+            </div>
+        ` : ''}
+        `;
+    }
+    
+    closeModal() {
+        document.getElementById('schemeDetailsModal').classList.remove('show');
+    }
+    
+    checkEligibility() {
+        if (!this.selectedScheme) {
+            alert('Please select a scheme first by clicking "View Details" on any scheme.');
+            return;
+        }
+        
+        const farmerType = document.getElementById('farmerType').value;
+        const cropType = document.getElementById('cropType').value;
+        const landOwnership = document.getElementById('landOwnership').value;
+        const annualIncome = document.getElementById('annualIncome').value;
+        
+        // Check if all fields are filled
+        if (!farmerType || !cropType || !landOwnership || !annualIncome) {
+            alert('Please fill all the fields to check eligibility.');
+            return;
+        }
+        
+        // Simple eligibility logic
+        let isEligible = true;
+        let reasons = [];
+        
+        // Check farmer type
+        if (farmerType === 'large') {
+            isEligible = false;
+            reasons.push('Scheme is for small and marginal farmers only');
+        }
+        
+        // Check land ownership
+        if (landOwnership === 'landless') {
+            isEligible = false;
+            reasons.push('Land ownership is required for this scheme');
+        }
+        
+        // Check income
+        if (annualIncome === 'above5') {
+            isEligible = false;
+            reasons.push('Income limit exceeded for this scheme');
+        }
+        
+        // Show result
+        this.showEligibilityResult(isEligible, reasons);
+    }
+    
+    showEligibilityResult(isEligible, reasons) {
+        const resultDiv = document.getElementById('eligibilityResult');
+        const contentDiv = document.getElementById('resultContent');
+        
+        if (isEligible) {
+            resultDiv.className = 'eligibility-result result-eligible show';
+            contentDiv.innerHTML = `
+                <h4 style="margin-bottom: 0.5rem; color: #155724;">✓ You are ELIGIBLE!</h4>
+                <p>Based on your information, you appear to be eligible for this scheme.</p>
+                <div class="result-details">
+                    <p><strong>Next Steps:</strong></p>
+                    <ul>
+                        <li>Gather required documents</li>
+                        <li>Visit nearest Agriculture Extension Office</li>
+                        <li>Submit application before deadline</li>
+                    </ul>
+                </div>
+            `;
+        } else {
+            resultDiv.className = 'eligibility-result result-not-eligible show';
+            contentDiv.innerHTML = `
+                <h4 style="margin-bottom: 0.5rem; color: #721c24;">✗ You are NOT ELIGIBLE</h4>
+                <p>Based on your information, you may not qualify for this scheme.</p>
+                ${reasons.length > 0 ? `
+                <div class="result-details">
+                    <p><strong>Reasons:</strong></p>
+                    <ul>
+                        ${reasons.map(reason => `<li>${reason}</li>`).join('')}
+                    </ul>
+                </div>
+                ` : ''}
+            `;
+        }
+        
+        // Scroll to result
+        resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    window.schemesManager = new SchemesManager();
+    window.schemesManager.init();
+    
+    // Load sample data if no data from backend
+    if (!SCHEMES_DATA || SCHEMES_DATA.length === 0) {
+        console.log('No schemes data from backend, using sample data');
+        window.schemesManager.schemes = [
+            {
+                id: 1,
+                name: "National Food Security Mission",
+                ministry: "Agriculture & Farmers Welfare",
+                budget: "12,500",
+                category_name: "Agricultural Support"
+            },
+            {
+                id: 2,
+                name: "PM Fasal Bima Yojana",
+                ministry: "Agriculture & Farmers Welfare",
+                budget: "16,000",
+                category_name: "Insurance"
+            },
+            {
+                id: 3,
+                name: "PM-KISAN Samman Nidhi",
+                ministry: "Agriculture & Farmers Welfare",
+                budget: "75,000",
+                category_name: "Financial Support"
+            },
+            {
+                id: 4,
+                name: "Paramparagat Krishi Vikas Yojana",
+                ministry: "Agriculture & Farmers Welfare",
+                budget: "4,500",
+                category_name: "Organic Farming"
+            }
+        ];
+        window.schemesManager.renderSchemes();
+    }
+});
+</script>
+{% endblock %}

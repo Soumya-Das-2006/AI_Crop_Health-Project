@@ -1,0 +1,798 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}AI Crop Map - FarmAssist{% endblock %}
+{% block body_class %}crop-map-page{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  /* Premium Styles */
+  .crop-map-container {
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8f5e9 100%);
+    min-height: calc(100vh - 80px);
+    padding: 40px 0;
+  }
+  
+  .map-card, .insight-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+  }
+  
+  .map-card:hover, .insight-card:hover {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  }
+  
+  #map {
+    height: 600px;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  
+  .skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+  }
+  
+  @keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  
+  .progress-bar {
+    transition: width 0.6s ease;
+  }
+  
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  
+  .badge-success { background: #d1f4e0; color: #1e7e34; }
+  .badge-warning { background: #fff4e5; color: #e67e22; }
+  .badge-danger { background: #ffe5e5; color: #e74c3c; }
+  .badge-info { background: #e3f2fd; color: #1976d2; }
+  
+  .metric-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    margin-bottom: 8px;
+  }
+  
+  .metric-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    margin-right: 12px;
+    font-size: 20px;
+  }
+  
+  .recommendation-item {
+    border-left: 3px solid #4caf50;
+    padding-left: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .npk-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: #e0e0e0;
+    overflow: hidden;
+  }
+  
+  .npk-fill {
+    height: 100%;
+    transition: width 0.6s ease;
+  }
+  
+  .npk-low { background: #ef5350; }
+  .npk-medium { background: #ffa726; }
+  .npk-high { background: #66bb6a; }
+  
+  .sticky-sidebar {
+    position: sticky;
+    top: 100px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
+  
+  .loading-spinner {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #4caf50;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  .accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  
+  .accordion-content.active {
+    max-height: 500px;
+  }
+
+  /* Fixed column gap */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 28px;
+  }
+
+  @media (max-width: 991px) {
+    .main-grid {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    
+    .sticky-sidebar {
+      position: relative;
+      top: 0;
+      max-height: none;
+    }
+    
+    #map {
+      height: 400px;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Title -->
+<div class="page-title dark-background" data-aos="fade"
+    style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>🌾 AI-Powered Crop Map</h1>
+    <p>Click anywhere to get AI-powered soil analysis, weather insights & crop recommendations</p>
+    <nav class="breadcrumbs">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li class="current">Crop Map</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+<!-- End Page Title -->
+
+<!-- Main Crop Map Section -->
+<section class="crop-map-container">
+  <div class="container">
+    <div class="main-grid">
+      
+      <!-- LEFT: MAP SECTION -->
+      <div>
+        <div class="map-card p-4">
+          <!-- Map Header -->
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <h3 class="mb-1" style="font-size: 24px; font-weight: 700; color: #2c3e50;">
+                🗺️ Interactive Crop Map
+              </h3>
+              <p class="text-muted mb-0" id="selected-location" style="font-size: 14px;">
+                📍 Click on the map to analyze any location
+              </p>
+            </div>
+            <button id="refresh-btn" class="btn btn-outline-success btn-sm" onclick="refreshAnalysis()">
+              <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+          </div>
+          
+          <!-- Map Container -->
+          <div id="map"></div>
+          
+          <!-- Map Footer -->
+          <div class="mt-3 text-center">
+            <small class="text-muted">
+              💡 Click anywhere on the map to get AI-powered agricultural insights for that location
+            </small>
+          </div>
+        </div>
+      </div>
+      
+      <!-- RIGHT: AI INSIGHT CARDS -->
+      <div>
+        <div class="sticky-sidebar">
+          
+          <!-- CARD 1: AI Weather Analysis -->
+          <div class="insight-card p-4 mb-4" id="weather-card">
+            <div class="d-flex align-items-center mb-3">
+              <div class="me-2" style="font-size: 24px;">🌤️</div>
+              <h4 class="mb-0" style="font-weight: 700; color: #2c3e50; font-size: 18px;">Weather Conditions</h4>
+            </div>
+            
+            <div id="weather-content">
+              <!-- Initial Message -->
+              <div class="text-center py-4" id="weather-initial">
+                <p class="text-muted">Click on the map to analyze weather conditions</p>
+              </div>
+              
+              <!-- Loading State -->
+              <div class="text-center py-4" id="weather-loading" style="display: none;">
+                <div class="loading-spinner mx-auto mb-3"></div>
+                <p class="text-muted">Analyzing weather conditions...</p>
+              </div>
+              
+              <!-- Weather Data -->
+              <div id="weather-data" style="display: none;">
+                <div class="metric-item">
+                  <div class="metric-icon" style="background: #fff3e0;">
+                    🌡️
+                  </div>
+                  <div class="flex-grow-1">
+                    <small class="text-muted d-block">Temperature</small>
+                    <strong id="weather-temp">--°C</strong>
+                  </div>
+                </div>
+                
+                <div class="metric-item">
+                  <div class="metric-icon" style="background: #e3f2fd;">
+                    💧
+                  </div>
+                  <div class="flex-grow-1">
+                    <small class="text-muted d-block">Humidity</small>
+                    <strong id="weather-humidity">--%</strong>
+                  </div>
+                </div>
+                
+                <div class="metric-item">
+                  <div class="metric-icon" style="background: #f3e5f5;">
+                    💨
+                  </div>
+                  <div class="flex-grow-1">
+                    <small class="text-muted d-block">Wind Speed</small>
+                    <strong id="weather-wind">-- km/h</strong>
+                  </div>
+                </div>
+                
+                <div class="metric-item">
+                  <div class="metric-icon" style="background: #e8f5e9;">
+                    🌬️
+                  </div>
+                  <div class="flex-grow-1">
+                    <small class="text-muted d-block">Air Quality</small>
+                    <span id="weather-air-quality" class="badge badge-success">Good</span>
+                  </div>
+                </div>
+                
+                <div class="mt-3 p-3" style="background: #e3f2fd; border-radius: 8px; border-left: 4px solid #1976d2;">
+                  <strong class="d-block mb-2" style="color: #1976d2; font-size: 14px;">Weather Recommendations</strong>
+                  <ul id="weather-recommendations" class="mb-0" style="font-size: 13px; padding-left: 20px;">
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- CARD 2: AI Crop Recommendations -->
+          <div class="insight-card p-4 mb-4" id="crops-card">
+            <div class="d-flex align-items-center mb-3">
+              <div class="me-2" style="font-size: 24px;">🌱</div>
+              <h4 class="mb-0" style="font-weight: 700; color: #2c3e50; font-size: 18px;">Crop Recommendations</h4>
+            </div>
+            
+            <div id="crops-content">
+              <!-- Initial Message -->
+              <div class="text-center py-4" id="crops-initial">
+                <p class="text-muted">Click on the map to get crop recommendations</p>
+              </div>
+              
+              <!-- Loading State -->
+              <div class="text-center py-4" id="crops-loading" style="display: none;">
+                <div class="loading-spinner mx-auto mb-3"></div>
+                <p class="text-muted">AI is analyzing crop suitability...</p>
+              </div>
+              
+              <!-- Crops Data -->
+              <div id="crops-data" style="display: none;">
+                <!-- Dynamic crop recommendations will be inserted here -->
+              </div>
+            </div>
+          </div>
+          
+          <!-- CARD 3: AI Soil Analysis -->
+          <div class="insight-card p-4 mb-4" id="soil-card">
+            <div class="d-flex align-items-center mb-3">
+              <div class="me-2" style="font-size: 24px;">🌍</div>
+              <h4 class="mb-0" style="font-weight: 700; color: #2c3e50; font-size: 18px;">Soil Analysis</h4>
+            </div>
+            
+            <div id="soil-content">
+              <!-- Initial Message -->
+              <div class="text-center py-4" id="soil-initial">
+                <p class="text-muted">Click on the map to analyze soil composition</p>
+              </div>
+              
+              <!-- Loading State -->
+              <div class="text-center py-4" id="soil-loading" style="display: none;">
+                <div class="loading-spinner mx-auto mb-3"></div>
+                <p class="text-muted">Analyzing soil composition...</p>
+              </div>
+              
+              <!-- Soil Data -->
+              <div id="soil-data" style="display: none;">
+                <div class="mb-3">
+                  <div class="d-flex justify-content-between mb-1">
+                    <small class="text-muted">Texture</small>
+                    <strong id="soil-texture">--</strong>
+                  </div>
+                </div>
+                
+                <div class="mb-3">
+                  <div class="d-flex justify-content-between mb-1">
+                    <small class="text-muted">Organic Matter</small>
+                    <strong id="soil-organic">--%</strong>
+                  </div>
+                </div>
+                
+                <div class="mb-3">
+                  <div class="d-flex justify-content-between mb-1">
+                    <small class="text-muted">Moisture</small>
+                    <strong id="soil-moisture">--%</strong>
+                  </div>
+                </div>
+                
+                <hr class="my-3">
+                
+                <h6 class="mb-2" style="font-weight: 600; font-size: 14px;">NPK Levels</h6>
+                
+                <div class="mb-3">
+                  <div class="d-flex justify-content-between mb-1">
+                    <small>Nitrogen (N)</small>
+                    <small id="soil-n-label">--</small>
+                  </div>
+                  <div class="npk-bar">
+                    <div id="soil-n-bar" class="npk-fill" style="width: 0%;"></div>
+                  </div>
+                </div>
+                
+                <div class="mb-3">
+                  <div class="d-flex justify-content-between mb-1">
+                    <small>Phosphorus (P)</small>
+                    <small id="soil-p-label">--</small>
+                  </div>
+                  <div class="npk-bar">
+                    <div id="soil-p-bar" class="npk-fill" style="width: 0%;"></div>
+                  </div>
+                </div>
+                
+                <div class="mb-3">
+                  <div class="d-flex justify-content-between mb-1">
+                    <small>Potassium (K)</small>
+                    <small id="soil-k-label">--</small>
+                  </div>
+                  <div class="npk-bar">
+                    <div id="soil-k-bar" class="npk-fill" style="width: 0%;"></div>
+                  </div>
+                </div>
+                
+                <div class="mb-3">
+                  <div class="d-flex justify-content-between mb-1">
+                    <small class="text-muted">pH Level</small>
+                    <strong id="soil-ph">--</strong>
+                  </div>
+                </div>
+                
+                <div class="mt-3 p-3" style="background: #e8f5e9; border-radius: 8px; border-left: 4px solid #4caf50;">
+                  <strong class="d-block mb-2" style="color: #2e7d32; font-size: 14px;">Soil Recommendations</strong>
+                  <ul id="soil-recommendations" class="mb-0" style="font-size: 13px; padding-left: 20px;">
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- AI Disclaimer -->
+          <div class="text-center mt-3">
+            <small class="text-muted" style="font-size: 11px;">
+              ⚠️ AI-estimated data. Not a replacement for laboratory soil testing.
+            </small>
+          </div>
+          
+        </div>
+      </div>
+      
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ========================================
+// GLOBAL VARIABLES
+// ========================================
+let map;
+let marker;
+let circle;
+let selectedLat = 28.6139; // Default: Delhi
+let selectedLon = 77.2090;
+
+// ========================================
+// INITIALIZE MAP
+// ========================================
+function initMap() {
+  console.log('🚀 Initializing map...');
+  
+  map = L.map('map').setView([selectedLat, selectedLon], 6);
+  
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(map);
+  
+  marker = L.marker([selectedLat, selectedLon], {
+    draggable: false
+  }).addTo(map);
+  
+  circle = L.circle([selectedLat, selectedLon], {
+    color: '#4caf50',
+    fillColor: '#4caf50',
+    fillOpacity: 0.2,
+    radius: 5000
+  }).addTo(map);
+  
+  map.on('click', function(e) {
+    selectedLat = e.latlng.lat;
+    selectedLon = e.latlng.lng;
+    
+    marker.setLatLng([selectedLat, selectedLon]);
+    circle.setLatLng([selectedLat, selectedLon]);
+    
+    updateLocationText(selectedLat, selectedLon);
+    fetchAIAnalysis(selectedLat, selectedLon);
+  });
+  
+  console.log('✅ Map initialized successfully');
+}
+
+// ========================================
+// UPDATE LOCATION TEXT
+// ========================================
+function updateLocationText(lat, lon) {
+  document.getElementById('selected-location').innerHTML = 
+    `📍 Selected: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+}
+
+function updateLocationWithZone(lat, lon, zone, zoneDetails) {
+  const locationEl = document.getElementById('selected-location');
+  locationEl.innerHTML = `
+    📍 ${lat.toFixed(4)}, ${lon.toFixed(4)} 
+    <span class="badge badge-info ms-2" style="font-size: 11px;">
+      ${zone} • ${zoneDetails.soil_type} Soil • ${zoneDetails.rainfall} Rainfall
+    </span>
+  `;
+}
+
+// ========================================
+// FETCH AI ANALYSIS
+// ========================================
+async function fetchAIAnalysis(lat, lon) {
+  console.log(`📍 Fetching analysis for lat=${lat}, lon=${lon}`);
+  
+  showLoading();
+  
+  const timeoutDuration = 30000;
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Request timeout')), timeoutDuration);
+  });
+  
+  try {
+    const url = `/crop-map/analyze/?lat=${lat}&lon=${lon}`;
+    console.log(`🔄 Requesting: ${url}`);
+    
+    const response = await Promise.race([
+      fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }),
+      timeoutPromise
+    ]);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Server error ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('📦 Received data:', data);
+    
+    if (data.success) {
+      // Update location display with zone info
+      if (data.location && data.location.zone) {
+        updateLocationWithZone(
+          data.location.lat,
+          data.location.lon,
+          data.location.zone,
+          data.location.zone_details
+        );
+      }
+      
+      // Show mode indicator if applicable
+      if (data.demo_mode || data.ai_fallback || data.parse_fallback) {
+        const mode = data.demo_mode ? 'DEMO' : data.ai_fallback ? 'FALLBACK' : 'PARSE ERROR';
+        showModeIndicator(mode);
+      }
+      
+      updateWeatherCard(data.weather);
+      updateCropsCard(data.crops);
+      updateSoilCard(data.soil);
+    } else {
+      showError(data.error || 'Analysis failed');
+    }
+    
+  } catch (error) {
+    console.error('❌ Fetch error:', error);
+    
+    let userMessage;
+    if (error.message.includes('timeout')) {
+      userMessage = 'Request timed out. Please try again.';
+    } else if (error.message.includes('Failed to fetch')) {
+      userMessage = 'Cannot connect to server. Is Django running?';
+    } else {
+      userMessage = error.message;
+    }
+    
+    showError(userMessage);
+  }
+}
+
+// ========================================
+// SHOW MODE INDICATOR
+// ========================================
+function showModeIndicator(mode) {
+  // Remove any existing indicators
+  const existingIndicator = document.querySelector('.alert-info.mode-indicator');
+  if (existingIndicator) {
+    existingIndicator.remove();
+  }
+  
+  const indicator = document.createElement('div');
+  indicator.className = 'alert alert-info alert-dismissible fade show mt-3 mode-indicator';
+  
+  let message = '';
+  if (mode === 'DEMO') {
+    message = '📌 <strong>DEMO MODE:</strong> Set GEMINI_API_KEY for AI-powered analysis.';
+  } else if (mode === 'FALLBACK') {
+    message = '⚠️ <strong>AI FALLBACK:</strong> Using sample data. AI service temporarily unavailable.';
+  } else if (mode === 'PARSE ERROR') {
+    message = '⚠️ <strong>PARSE ERROR:</strong> AI response could not be parsed. Using fallback data.';
+  }
+  
+  indicator.innerHTML = `
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  `;
+  
+  const mapCard = document.querySelector('.map-card');
+  if (mapCard) {
+    mapCard.appendChild(indicator);
+  }
+}
+
+// ========================================
+// SHOW LOADING STATES
+// ========================================
+function showLoading() {
+  console.log('🔄 Showing loading states');
+  
+  ['weather', 'crops', 'soil'].forEach(card => {
+    document.getElementById(`${card}-initial`).style.display = 'none';
+    document.getElementById(`${card}-loading`).style.display = 'block';
+    document.getElementById(`${card}-data`).style.display = 'none';
+  });
+}
+
+// ========================================
+// UPDATE WEATHER CARD
+// ========================================
+function updateWeatherCard(weather) {
+  console.log('☀️ Updating weather card');
+  
+  document.getElementById('weather-loading').style.display = 'none';
+  document.getElementById('weather-data').style.display = 'block';
+  
+  document.getElementById('weather-temp').textContent = `${weather.temperature || 25}°C`;
+  document.getElementById('weather-humidity').textContent = `${weather.humidity || 60}%`;
+  document.getElementById('weather-wind').textContent = `${weather.wind_speed || 10} km/h`;
+  
+  const aqBadge = document.getElementById('weather-air-quality');
+  const airQuality = weather.air_quality || 'Moderate';
+  aqBadge.textContent = airQuality;
+  aqBadge.className = 'badge ' + getAirQualityClass(airQuality);
+  
+  const recList = document.getElementById('weather-recommendations');
+  const recs = weather.recommendations || ['No recommendations available'];
+  recList.innerHTML = recs.map(r => `<li>${r}</li>`).join('');
+}
+
+function getAirQualityClass(quality) {
+  const map = {
+    'Good': 'badge-success',
+    'Moderate': 'badge-warning',
+    'Poor': 'badge-danger',
+    'Unhealthy': 'badge-danger'
+  };
+  return map[quality] || 'badge-warning';
+}
+
+// ========================================
+// UPDATE CROPS CARD
+// ========================================
+function updateCropsCard(crops) {
+  console.log('🌱 Updating crops card, count:', crops?.length || 0);
+  
+  document.getElementById('crops-loading').style.display = 'none';
+  document.getElementById('crops-data').style.display = 'block';
+  
+  const container = document.getElementById('crops-data');
+  
+  if (!crops || crops.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-3">
+        <p class="text-muted">No crop recommendations available</p>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = crops.slice(0, 5).map((crop, index) => `
+    <div class="recommendation-item">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0" style="font-weight: 600; font-size: 15px;">
+          ${crop.name || 'Unknown Crop'}
+        </h6>
+        <span class="badge badge-success">${crop.suitability || 50}% Suitable</span>
+      </div>
+      
+      <div class="progress mb-2" style="height: 6px;">
+        <div class="progress-bar bg-success" role="progressbar" 
+             style="width: ${crop.suitability || 50}%">
+        </div>
+      </div>
+      
+      <button class="btn btn-sm btn-outline-secondary w-100" onclick="toggleAccordion(${index})">
+        <i class="bi bi-chevron-down" id="accordion-icon-${index}"></i> View Tips
+      </button>
+      
+      <div class="accordion-content mt-2" id="accordion-${index}">
+        <ul style="font-size: 13px; padding-left: 20px; margin-top: 8px;">
+          ${(crop.tips || ['No tips available']).map(tip => `<li>${tip}</li>`).join('')}
+        </ul>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ========================================
+// UPDATE SOIL CARD
+// ========================================
+function updateSoilCard(soil) {
+  console.log('🌍 Updating soil card');
+  
+  document.getElementById('soil-loading').style.display = 'none';
+  document.getElementById('soil-data').style.display = 'block';
+  
+  document.getElementById('soil-texture').textContent = soil.texture || 'Unknown';
+  document.getElementById('soil-organic').textContent = (soil.organic_matter || '2.0') + '%';
+  document.getElementById('soil-moisture').textContent = (soil.moisture || '45') + '%';
+  document.getElementById('soil-ph').textContent = soil.ph || '6.5-7.5';
+  
+  const npk = soil.npk || { nitrogen: 'Medium', phosphorus: 'Medium', potassium: 'Medium' };
+  updateNPKBar('n', npk.nitrogen || 'Medium');
+  updateNPKBar('p', npk.phosphorus || 'Medium');
+  updateNPKBar('k', npk.potassium || 'Medium');
+  
+  const recList = document.getElementById('soil-recommendations');
+  const recs = soil.recommendations || ['No recommendations available'];
+  recList.innerHTML = recs.map(r => `<li>${r}</li>`).join('');
+}
+
+// ========================================
+// UPDATE NPK BAR
+// ========================================
+function updateNPKBar(nutrient, level) {
+  const bar = document.getElementById(`soil-${nutrient}-bar`);
+  const label = document.getElementById(`soil-${nutrient}-label`);
+  
+  const config = {
+    'Low': { width: 33, class: 'npk-low', text: 'Low' },
+    'Medium': { width: 66, class: 'npk-medium', text: 'Medium' },
+    'High': { width: 100, class: 'npk-high', text: 'High' }
+  };
+  
+  const settings = config[level] || config['Medium'];
+  
+  bar.style.width = settings.width + '%';
+  bar.className = 'npk-fill ' + settings.class;
+  label.textContent = settings.text;
+}
+
+// ========================================
+// TOGGLE ACCORDION
+// ========================================
+function toggleAccordion(index) {
+  const content = document.getElementById(`accordion-${index}`);
+  const icon = document.getElementById(`accordion-icon-${index}`);
+  
+  content.classList.toggle('active');
+  icon.classList.toggle('bi-chevron-down');
+  icon.classList.toggle('bi-chevron-up');
+}
+
+// ========================================
+// REFRESH ANALYSIS
+// ========================================
+function refreshAnalysis() {
+  console.log('🔄 Refreshing analysis');
+  if (document.getElementById('weather-data').style.display === 'block') {
+    fetchAIAnalysis(selectedLat, selectedLon);
+  } else {
+    showError('Please select a location on the map first');
+  }
+}
+
+// ========================================
+// SHOW ERROR
+// ========================================
+function showError(message) {
+  console.error('❌ Error:', message);
+  
+  // Remove any existing error alerts
+  document.querySelectorAll('.alert-danger').forEach(el => el.remove());
+  
+  const errorDiv = document.createElement('div');
+  errorDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+  errorDiv.innerHTML = `
+    <strong>Error:</strong> ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  `;
+  
+  const mapCard = document.querySelector('.map-card');
+  if (mapCard) {
+    mapCard.appendChild(errorDiv);
+    setTimeout(() => errorDiv.remove(), 10000);
+  }
+  
+  // Reset to initial state
+  ['weather', 'crops', 'soil'].forEach(card => {
+    document.getElementById(`${card}-loading`).style.display = 'none';
+    document.getElementById(`${card}-initial`).style.display = 'block';
+  });
+}
+
+// ========================================
+// INITIALIZE ON PAGE LOAD
+// ========================================
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('🚀 Initializing crop map application...');
+  initMap();
+  console.log('✅ Application ready!');
+});
+</script>
+{% endblock %}

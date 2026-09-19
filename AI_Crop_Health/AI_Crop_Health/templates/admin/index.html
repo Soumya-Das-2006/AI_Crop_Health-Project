@@ -1,0 +1,223 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static dashboard_tags %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static 'core/css/main.css' %}?v=20260907">
+{% endblock %}
+
+{% block content %}
+<div class="master-dashboard">
+
+    {% get_dashboard_metrics as metrics %}
+    
+    <div class="dashboard-header">
+        <div>
+            <h1>Control Center</h1>
+            <p>AI Crop Health Platform Administration</p>
+        </div>
+        <div class="dashboard-identity">
+            <strong>{{ user.get_full_name|default:user.username }}</strong>
+            <span>{{ metrics.role }}</span>
+        </div>
+    </div>
+
+    {% if metrics.quick_actions %}
+    <div class="dashboard-actions" aria-label="Quick actions">
+        {% for action in metrics.quick_actions %}
+        <a href="{{ action.url }}" class="dashboard-action">
+            <span class="dashboard-action-title">{{ action.label }} <span aria-hidden="true">&rarr;</span></span>
+            <span class="dashboard-action-description">{{ action.description }}</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if metrics.needs_attention %}
+    <h2 class="section-title">⚠ Needs Attention</h2>
+    <div class="attention-grid">
+        {% for item in metrics.needs_attention %}
+        <a href="{{ item.url }}" class="attention-item {{ item.icon }}">
+            <span class="attention-icon">{% if item.icon == 'error' %}🔴{% else %}🟠{% endif %}</span>
+            {{ item.label }} &rarr;
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if metrics.platform %}
+    <h2 class="section-title">Platform KPIs</h2>
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-title">Total Users</div>
+            <div class="kpi-value">{{ metrics.platform.total }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Active Users</div>
+            <div class="kpi-value">{{ metrics.platform.active }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">New (30d)</div>
+            <div class="kpi-value">{{ metrics.platform.new }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Staff</div>
+            <div class="kpi-value">{{ metrics.platform.staff }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if metrics.crop_health %}
+    <h2 class="section-title">Crop & Land Health</h2>
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-title">Total Lands</div>
+            <div class="kpi-value">{{ metrics.crop_health.lands }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Diagnoses</div>
+            <div class="kpi-value">{{ metrics.crop_health.diagnoses }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Healthy</div>
+            <div class="kpi-value success">{{ metrics.crop_health.healthy }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Disease Detected</div>
+            <div class="kpi-value danger">{{ metrics.crop_health.disease }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if metrics.ai %}
+    <h2 class="section-title">AI Performance</h2>
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-title">Predictions</div>
+            <div class="kpi-value">{{ metrics.ai.total }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">High Confidence</div>
+            <div class="kpi-value success">{{ metrics.ai.high }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Low Confidence</div>
+            <div class="kpi-value warning">{{ metrics.ai.low }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Avg Confidence</div>
+            <div class="kpi-value">{{ metrics.ai.avg }}%</div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if metrics.notifications %}
+    <h2 class="section-title">Notifications</h2>
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-title">Sent</div>
+            <div class="kpi-value">{{ metrics.notifications.sent }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Delivered</div>
+            <div class="kpi-value success">{{ metrics.notifications.delivered }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Pending</div>
+            <div class="kpi-value info">{{ metrics.notifications.pending }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Failed</div>
+            <div class="kpi-value danger">{{ metrics.notifications.failed }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if metrics.system_health %}
+    <h2 class="section-title">System Health</h2>
+    <div class="health-grid">
+        {% for s in metrics.system_health %}
+        <div class="health-badge">
+            <div class="health-dot {% if s.healthy %}healthy{% else %}unhealthy{% endif %}"></div>
+            {{ s.name }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <h2 class="section-title">Administration</h2>
+    <div class="app-layout">
+        <div class="app-list">
+            {% if app_list %}
+                {% for app in app_list %}
+                    <div class="module" id="app-{{ app.app_label }}">
+                        <caption>
+                            <a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app.name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app.name }}</a>
+                        </caption>
+                        {% if app.models %}
+                            <table>
+                            {% for model in app.models %}
+                                <tr class="model-{{ model.object_name|lower }}{% if model.admin_url in request.path %} current-model{% endif %}">
+                                    {% if model.admin_url %}
+                                        <th scope="row"><a href="{{ model.admin_url }}">{{ model.name }}</a></th>
+                                    {% else %}
+                                        <th scope="row">{{ model.name }}</th>
+                                    {% endif %}
+                                    {% if model.add_url %}
+                                        <td><a href="{{ model.add_url }}" class="addlink">{% translate 'Add' %}</a></td>
+                                    {% else %}
+                                        <td></td>
+                                    {% endif %}
+                                    {% if model.admin_url and show_changelinks %}
+                                        {% if model.view_only %}
+                                        <td><a href="{{ model.admin_url }}" class="viewlink">{% translate 'View' %}</a></td>
+                                        {% else %}
+                                        <td><a href="{{ model.admin_url }}" class="changelink">{% translate 'Change' %}</a></td>
+                                        {% endif %}
+                                    {% elif show_changelinks %}
+                                        <td></td>
+                                    {% endif %}
+                                </tr>
+                            {% endfor %}
+                            </table>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>{% translate 'You don’t have permission to view or edit anything.' %}</p>
+            {% endif %}
+        </div>
+        <div class="recent-actions">
+            <div class="module">
+                <caption>Recent Actions</caption>
+                <div style="padding: 16px; color: var(--text-muted); font-size: 13px;">
+                    {% load log %}
+                    {% get_admin_log 10 as admin_log for_user user %}
+                    {% if not admin_log %}
+                        <p>{% translate 'None available' %}</p>
+                    {% else %}
+                        <ul style="list-style: none; padding: 0; margin: 0;">
+                        {% for entry in admin_log %}
+                            <li style="margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+                                <strong style="color: var(--text-main);">{{ entry.user }}</strong> 
+                                {% if entry.is_addition %}added{% endif %}
+                                {% if entry.is_change %}modified{% endif %}
+                                {% if entry.is_deletion %}deleted{% endif %}
+                                <br>
+                                {% if entry.is_deletion or not entry.url %}
+                                    {{ entry.object_repr }}
+                                {% else %}
+                                    <a href="{{ entry.url }}">{{ entry.object_repr }}</a>
+                                {% endif %}
+                                <br>
+                                <span style="font-size: 11px; color: #94a3b8;">{{ entry.action_time|date:"DATETIME_FORMAT" }}</span>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

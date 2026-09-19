@@ -1,0 +1,365 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Agriculture Advisory Board - AgriCulture{% endblock %}
+{% block body_class %}advisory-page{% endblock %}
+
+{% block content %}
+
+    <!-- Page Title -->
+    <div class="page-title dark-background" data-aos="fade" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+      <div class="container position-relative">
+        <h1>Agriculture Advisory Board</h1>
+        <p>Get context-aware recommendations and time-sensitive alerts for your farm.</p>
+        <nav class="breadcrumbs">
+          <ol>
+            <li><a href="{% url 'index' %}">Home</a></li>
+            <li class="current">Advisory Board</li>
+          </ol>
+        </nav>
+      </div>
+    </div><!-- End Page Title -->
+
+    <!-- Advisory Board Section -->
+    <section id="advisory-board" class="advisory-board section">
+      <div class="container">
+        
+        <!-- Context Form -->
+        <div class="row mb-5">
+          <div class="col-lg-12">
+            <div class="card shadow-sm">
+              <div class="card-body">
+                <h3 class="card-title mb-4">📍 Your Farm Context</h3>
+                <p class="text-muted mb-4">Provide your location, soil type, and current season to get personalized recommendations.</p>
+                
+                <form method="GET" action="{% url 'detection:suggestion' %}" class="row g-3">
+                  <div class="col-md-4">
+                    <label for="location" class="form-label">Location</label>
+                    <input 
+                      type="text" 
+                      class="form-control" 
+                      id="location" 
+                      name="location"
+                      placeholder="e.g., Maharashtra, Punjab, Karnataka"
+                      value="{{ location }}"
+                      required
+                    >
+                    <small class="text-muted">Enter your state or region</small>
+                  </div>
+                  
+                  <div class="col-md-4">
+                    <label for="soil_type" class="form-label">Soil Type</label>
+                    <select class="form-control" id="soil_type" name="soil_type" required>
+                      <option value="">Select soil type...</option>
+                      {% for value, label in soil_type_choices %}
+                        <option value="{{ value }}" {% if soil_type == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                    <small class="text-muted">Your primary soil type</small>
+                  </div>
+                  
+                  <div class="col-md-4">
+                    <label for="season" class="form-label">Current Season</label>
+                    <select class="form-control" id="season" name="season" required>
+                      <option value="">Select season...</option>
+                      {% for value, label in season_choices %}
+                        <option value="{{ value }}" {% if season == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                    <small class="text-muted">Current agricultural season</small>
+                  </div>
+                  
+                  <div class="col-12">
+                    <button type="submit" class="btn btn-primary btn-lg px-5">
+                      🌾 Get Personalized Advisories
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {% if show_results %}
+        
+        <!-- Error/Fallback Message -->
+        {% if error_message %}
+        <div class="row mb-4">
+          <div class="col-lg-12">
+            <div class="alert alert-info" role="alert">
+              <i class="bi bi-info-circle me-2"></i>{{ error_message }}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Alerts Section -->
+        {% if alerts %}
+        <div class="row mb-5">
+          <div class="col-lg-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <h2 class="mb-0">🔔 Active Alerts</h2>
+              <span class="badge bg-danger">{{ alerts|length }} Alert{{ alerts|length|pluralize }}</span>
+            </div>
+            
+            <div class="alerts-container">
+              {% for alert in alerts %}
+              <div class="alert-card card mb-3 border-{{ alert.severity_color }}" data-alert-id="{{ alert.id }}">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                      <!-- Alert Header -->
+                      <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-{{ alert.severity_color }} me-2">
+                          <i class="{{ alert.severity_icon }} me-1"></i>
+                          {{ alert.get_severity_display|upper }}
+                        </span>
+                        <span class="badge bg-secondary">
+                          {{ alert.get_alert_type_display }}
+                        </span>
+                        {% if alert.is_pinned %}
+                        <span class="badge bg-dark ms-2">📌 Pinned</span>
+                        {% endif %}
+                      </div>
+                      
+                      <!-- Alert Title -->
+                      <h4 class="card-title mb-2">{{ alert.title }}</h4>
+                      
+                      <!-- Alert Message -->
+                      <p class="card-text mb-3">{{ alert.message }}</p>
+                      
+                      <!-- Affected Crops -->
+                      {% if alert.get_affected_crops_list %}
+                      <div class="mb-2">
+                        <strong class="text-muted">🌾 Affected Crops:</strong>
+                        <span class="text-muted">{{ alert.get_affected_crops_list|join:", " }}</span>
+                      </div>
+                      {% endif %}
+                      
+                      <!-- Valid Until -->
+                      <div class="text-muted small">
+                        <i class="bi bi-clock me-1"></i>
+                        Valid until: {{ alert.valid_until|date:"M d, Y H:i" }}
+                      </div>
+                    </div>
+                    
+                    <!-- Reaction Buttons -->
+                    <div class="reaction-buttons ms-3">
+                      <button class="btn btn-sm btn-outline-secondary reaction-btn" 
+                              data-content-type="alert" 
+                              data-content-id="{{ alert.id }}" 
+                              data-reaction="viewed"
+                              title="Mark as viewed">
+                        👁️
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Suggestions Section -->
+        {% if suggestions %}
+        <div class="row">
+          <div class="col-lg-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <h2 class="mb-0">🌾 Personalized Suggestions</h2>
+              <span class="badge bg-success">{{ suggestions|length }} Suggestion{{ suggestions|length|pluralize }}</span>
+            </div>
+            
+            <div class="suggestions-container row">
+              {% for suggestion in suggestions %}
+              <div class="col-lg-6 mb-4">
+                <div class="suggestion-card card h-100 shadow-sm" data-suggestion-id="{{ suggestion.id }}">
+                  <div class="card-body">
+                    <!-- Category & Priority -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                      <span class="badge bg-{{ suggestion.category|default:'secondary' }} badge-category">
+                        {{ suggestion.get_category_display }}
+                      </span>
+                      {% if suggestion.priority == 'high' %}
+                      <span class="badge bg-danger">⬆️ High Priority</span>
+                      {% elif suggestion.priority == 'medium' %}
+                      <span class="badge bg-warning text-dark">➡️ Medium</span>
+                      {% else %}
+                      <span class="badge bg-success">⬇️ Low Priority</span>
+                      {% endif %}
+                    </div>
+                    
+                    <!-- Title -->
+                    <h4 class="card-title mb-3">{{ suggestion.title }}</h4>
+                    
+                    <!-- Description -->
+                    <p class="card-text">{{ suggestion.description|truncatewords:50 }}</p>
+                    
+                    <!-- Applicability Info -->
+                    <div class="applicability-info mt-3 pt-3 border-top">
+                      {% if not suggestion.is_global %}
+                      <div class="small text-muted mb-1">
+                        <i class="bi bi-geo-alt me-1"></i>
+                        Locations: {{ suggestion.get_applicable_locations_list|join:", " }}
+                      </div>
+                      {% endif %}
+                      
+                      {% if suggestion.applicable_seasons != 'all' %}
+                      <div class="small text-muted mb-1">
+                        <i class="bi bi-calendar me-1"></i>
+                        Seasons: {{ suggestion.get_applicable_seasons_list|join:", "|title }}
+                      </div>
+                      {% endif %}
+                      
+                      {% if suggestion.applicable_soil_types != 'any' %}
+                      <div class="small text-muted">
+                        <i class="bi bi-flower1 me-1"></i>
+                        Soil: {{ suggestion.get_applicable_soil_types_list|join:", "|title }}
+                      </div>
+                      {% endif %}
+                    </div>
+                    
+                    <!-- Reaction Buttons -->
+                    <div class="reaction-buttons mt-3 pt-3 border-top">
+                      <div class="btn-group btn-group-sm w-100" role="group">
+                        <button class="btn btn-outline-success reaction-btn flex-fill" 
+                                data-content-type="suggestion" 
+                                data-content-id="{{ suggestion.id }}" 
+                                data-reaction="helpful"
+                                title="Mark as helpful">
+                          👍 Helpful
+                        </button>
+                        <button class="btn btn-outline-danger reaction-btn flex-fill" 
+                                data-content-type="suggestion" 
+                                data-content-id="{{ suggestion.id }}" 
+                                data-reaction="not_helpful"
+                                title="Mark as not helpful">
+                          👎 Not Helpful
+                        </button>
+                        <button class="btn btn-outline-secondary reaction-btn flex-fill" 
+                                data-content-type="suggestion" 
+                                data-content-id="{{ suggestion.id }}" 
+                                data-reaction="viewed"
+                                title="Mark as viewed">
+                          👁️ Viewed
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Empty State -->
+        {% if not alerts and not suggestions and show_results %}
+        <div class="row">
+          <div class="col-lg-12">
+            <div class="card text-center shadow-sm">
+              <div class="card-body py-5">
+                <i class="bi bi-inbox" style="font-size: 64px; color: #ccc;"></i>
+                <h3 class="mt-4">No Advisories Available</h3>
+                <p class="text-muted">
+                  We couldn't find specific advisories for your context.<br>
+                  Try adjusting your location, soil type, or season.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% endif %} <!-- end show_results -->
+
+      </div>
+    </section><!-- End Advisory Board Section -->
+
+    <!-- Custom Styles -->
+    <style>
+      .badge-category {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.65rem;
+      }
+      
+      .alert-card {
+        border-left-width: 4px;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      
+      .alert-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+      
+      .suggestion-card {
+        border-top-width: 3px;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      
+      .suggestion-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+      }
+      
+      .reaction-btn:active {
+        transform: scale(0.95);
+      }
+      
+      .reaction-btn.reacted {
+        background-color: #e9ecef;
+        font-weight: bold;
+      }
+      
+      .applicability-info i {
+        color: #6c757d;
+      }
+    </style>
+
+    <!-- Reaction Handling Script -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Get context from form
+      const location = "{{ location }}";
+      const soilType = "{{ soil_type }}";
+      const season = "{{ season }}";
+      
+      // Handle reaction buttons
+      document.querySelectorAll('.reaction-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+          e.preventDefault();
+          
+          const contentType = this.dataset.contentType;
+          const contentId = this.dataset.contentId;
+          const reaction = this.dataset.reaction;
+          
+          // Mark button as clicked
+          this.classList.add('reacted');
+          this.disabled = true;
+          
+          // Send reaction (using fetch API)
+          // Note: In production, this would call the record_reaction_api endpoint
+          console.log('Reaction recorded:', {
+            contentType,
+            contentId,
+            reaction,
+            location,
+            soilType,
+            season
+          });
+          
+          // Show feedback
+          const originalText = this.innerHTML;
+          this.innerHTML = '✓';
+          setTimeout(() => {
+            this.innerHTML = originalText;
+          }, 1000);
+        });
+      });
+    });
+    </script>
+
+{% endblock %}

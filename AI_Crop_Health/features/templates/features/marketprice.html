@@ -1,0 +1,107 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Crop Market Price - AgriCulture{% endblock %}
+{% block body_class %}market-price{% endblock %}
+
+{% block content %}
+
+    <!-- Page Title -->
+    <div class="page-title dark-background" data-aos="fade" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+      <div class="container position-relative">
+        <h1>Crop Market Price</h1>
+        <p>Get the latest market prices for various crops to make informed selling decisions.</p>
+        <nav class="breadcrumbs">
+          <ol>
+            <li><a href="{% url 'index' %}">Home</a></li>
+            <li class="current">Market Price</li>
+          </ol>
+        </nav>
+      </div>
+    </div><!-- End Page Title -->
+
+    <!-- Main Content -->
+    <section id="marketprice" class="marketprice section">
+      <div class="container">
+        <div class="row gy-4">
+          <div class="col-lg-12">
+            <h2>Crop Market Price</h2>
+            <p>Get the latest market prices for various crops to make informed selling decisions.</p>
+
+            <!-- Category Filter -->
+            <div class="category-filter">
+              <form method="get" action="{% url 'features:marketprice' %}">
+                <label for="category">Filter by Category:</label>
+                <select name="category" id="category" onchange="this.form.submit()">
+                  <option value="">All Categories</option>
+                  {% for cat in categories %}
+                    <option value="{{ cat }}" {% if cat == selected_category %}selected{% endif %}>{{ cat }}</option>
+                  {% endfor %}
+                </select>
+              </form>
+            </div>
+
+            <!-- Price Cards -->
+            {% if prices %}
+              <div class="row mt-4">
+                {% for price in prices %}
+                  <div class="col-md-6 col-lg-4">
+                    <div class="price-card card">
+                      <img src="{{ price.crop_image.url }}" alt="{{ price.crop_name }}" class="card-img-top">
+                      <div class="card-body">
+                        <h5 class="card-title">{{ price.crop_name }}</h5>
+                        <p class="card-text"><strong>Location:</strong> {{ price.market_location }}</p>
+                        <p class="price">{{ price.price_per_quintal }} {{ price.price_unit }}</p>
+                        <span class="price-trend trend-{{ price.price_trend|lower }}">
+                          {% if price.price_trend == 'Up' %}
+                          <strong>↑</strong>
+                          {% elif price.price_trend == 'Down' %}
+                          <strong>↓</strong>
+                          {% else %}
+                          <strong>→</strong>
+                          {% endif %}
+                          {{ price.price_trend }}
+                        </span>
+                        {% if price.last_updated.date == today %}
+                          <span class="badge badge-success">Updated Today</span>
+                        {% endif %}
+                        <p class="last-updated">Last updated: {{ price.last_updated|date:"M d, Y H:i" }}</p>
+                        {% if price.description %}
+                          <p class="notes">
+                          <strong>Notes:</strong>
+                          {% if price.description|length > 100 %}
+                          {{ price.description|slice:":100" }}... 
+                          <a href="#" class="read-more" data-full="{{ price.description|escapejs }}">read more</a>
+                          {% else %}
+                          {{ price.description }}
+                          {% endif %}
+                          </p>
+                        {% endif %}
+                        <script>
+                          document.addEventListener('DOMContentLoaded', function() {
+                          document.querySelectorAll('.read-more').forEach(function(link) {
+                            link.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            const fullText = this.getAttribute('data-full');
+                            this.parentElement.innerHTML = '<strong>Notes:</strong> ' + fullText;
+                            });
+                          });
+                          });
+                        </script>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="empty-state">
+                <h3>No market prices available</h3>
+                <p>Please check back later or contact support.</p>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </section>
+
+{% endblock %}

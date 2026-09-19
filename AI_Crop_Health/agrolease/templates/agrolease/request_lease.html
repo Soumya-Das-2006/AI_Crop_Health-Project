@@ -5,237 +5,179 @@
 {% block body_class %}agrolease-request-lease-page{% endblock %}
 
 {% block content %}
-
-<div class="page-title dark-background"
-     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
   <div class="container position-relative">
     <h1>Request Land Lease</h1>
     <p>Submit your lease request for this agricultural land</p>
-    <nav class="breadcrumbs">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
       <ol>
         <li><a href="{% url 'index' %}">Home</a></li>
-        <li><a href="/">AgroLease</a></li>
+        <li><a href="{% url 'agrolease:role_selection' %}">AgroLease</a></li>
         <li><a href="{% url 'agrolease:search_land' %}">Search Land</a></li>
-        <li class="current">Request Lease</li>
+        <li class="current" aria-current="page">Request Lease</li>
       </ol>
-    <a href="{% url \'agrolease:logout\' %}" class="btn btn-outline-danger ms-2">Logout</a>\1
+    </nav>
   </div>
 </div>
 
-<section class="section">
+<section class="agrolease-form-section">
   <div class="container">
-    <div class="row justify-content-center">
-      <div class="col-lg-10">
-        <!-- Header -->
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-800">Request Land Lease</h1>
-            <p class="text-gray-600 mt-2">Submit your lease request for this agricultural land</p>
-        </div>
-
-        <!-- Land Summary -->
-        <div class="bg-white rounded-lg shadow-lg mb-8">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-800">Land Details</h2>
-            </div>
-            <div class="p-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <h3 class="font-medium text-gray-900 mb-3">{{ land.location }}</h3>
-                        <div class="space-y-2 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Size:</span>
-                                <span class="font-medium">{{ land.size }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Soil Type:</span>
-                                <span class="font-medium">{{ land.soil_type }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Water Source:</span>
-                                <span class="font-medium">{{ land.water_source }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h3 class="font-medium text-gray-900 mb-3">Lease Terms</h3>
-                        <div class="space-y-2 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Suitable Crops:</span>
-                                <span class="font-medium">{{ land.suitable_crops }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Rent:</span>
-                                <span class="font-medium text-green-600">{{ land.rent }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Duration:</span>
-                                <span class="font-medium">{{ land.duration }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-4 p-4 bg-green-50 rounded-lg">
-                    <div class="flex items-center">
-                        <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <p class="text-sm text-green-800">
-                            <strong>Note:</strong> This land appears suitable for your farming needs based on the soil type and water availability.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Request Form -->
-        <div class="bg-white rounded-lg shadow-lg">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-800">Lease Request Details</h2>
-            </div>
-            <div class="p-6">
-                <form method="post" class="space-y-6">
-                    {% csrf_token %}
-
-                    <div>
-                        <label for="farmer_name" class="block text-sm font-medium text-gray-700 mb-1">
-                            Your Full Name *
-                        </label>
-                        <input
-                            type="text"
-                            id="farmer_name"
-                            name="farmer_name"
-                            required
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                            placeholder="Enter your full name"
-                        >
-                    </div>
-
-                    <div>
-                        <label for="contact_number" class="block text-sm font-medium text-gray-700 mb-1">
-                            Contact Number *
-                        </label>
-                        <div class="flex">
-                            <span class="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md">
-                                +91
-                            </span>
-                            <input
-                                type="tel"
-                                id="contact_number"
-                                name="contact_number"
-                                required
-                                pattern="[6-9][0-9]{9}"
-                                class="flex-1 min-w-0 block w-full px-3 py-2 border border-gray-300 rounded-none rounded-r-md focus:ring-green-500 focus:border-green-500"
-                                placeholder="Enter 10-digit number"
-                            >
-                        </div>
-                    </div>
-
-                    <div>
-                        <label for="farming_experience" class="block text-sm font-medium text-gray-700 mb-1">
-                            Farming Experience *
-                        </label>
-                        <select
-                            id="farming_experience"
-                            name="farming_experience"
-                            required
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        >
-                            <option value="">Select your experience level</option>
-                            <option value="beginner">Beginner (0-2 years)</option>
-                            <option value="intermediate">Intermediate (2-5 years)</option>
-                            <option value="experienced">Experienced (5+ years)</option>
-                            <option value="expert">Expert (10+ years)</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label for="intended_crops" class="block text-sm font-medium text-gray-700 mb-1">
-                            Intended Crops *
-                        </label>
-                        <input
-                            type="text"
-                            id="intended_crops"
-                            name="intended_crops"
-                            required
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                            placeholder="e.g., Rice, Wheat, Vegetables"
-                        >
-                    </div>
-
-                    <div>
-                        <label for="lease_duration" class="block text-sm font-medium text-gray-700 mb-1">
-                            Requested Lease Duration
-                        </label>
-                        <select
-                            id="lease_duration"
-                            name="lease_duration"
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        >
-                            <option value="season">One Season</option>
-                            <option value="year">One Year</option>
-                            <option value="custom">Custom Duration</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label for="message" class="block text-sm font-medium text-gray-700 mb-1">
-                            Message to Land Owner *
-                        </label>
-                        <textarea
-                            id="message"
-                            name="message"
-                            required
-                            rows="4"
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                            placeholder="Tell the land owner about your farming plans, experience, and why this land is suitable for you..."
-                        ></textarea>
-                    </div>
-
-                    <!-- Terms Agreement -->
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <div class="flex items-start">
-                            <div class="flex items-center h-5">
-                                <input
-                                    id="terms_agreed"
-                                    name="terms_agreed"
-                                    type="checkbox"
-                                    required
-                                    class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                                >
-                            </div>
-                            <div class="ml-3 text-sm">
-                                <label for="terms_agreed" class="text-gray-700">
-                                    I agree to the <a href="#" class="text-green-600 hover:text-green-700">terms and conditions</a> of AgroLease.
-                                    I understand that crop risk lies with the farmer and I am responsible for proper land usage.
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Submit Buttons -->
-                    <div class="flex justify-end space-x-3">
-                        <a href="{% url 'agrolease:search_land' %}" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition-colors">
-                            Cancel
-                        </a>
-                        <button
-                            type="submit"
-                            class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium"
-                        >
-                            Submit Request
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Back Button -->
-        <div class="text-center mt-8">
-            <a href="{% url 'agrolease:search_land' %}" class="text-green-600 hover:text-green-700 font-medium">
-                ← Back to Search
-            </a>
-        </div>
+    {% if messages %}
+    <div class="agrolease-messages agrolease-form-message" aria-live="polite">
+      {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+      {% endfor %}
     </div>
-</div>
+    {% endif %}
+
+    <div class="agrolease-form-layout">
+      <div class="agrolease-form-main">
+        <section class="agrolease-form-card agrolease-request-form-card">
+          <div class="agrolease-form-card-heading">
+            <span>01</span>
+            <div>
+              <h3>Land summary</h3>
+              <p>Review the parcel before sending your request.</p>
+            </div>
+          </div>
+
+          <div class="agrolease-request-summary">
+            <div class="agrolease-request-visual">
+              {% if land.image %}
+                <img src="{{ land.image.url }}" alt="{{ land.location }}" class="agrolease-request-image">
+              {% else %}
+                <div class="agrolease-request-image agrolease-request-placeholder">
+                  <i class="bi bi-image-alt" aria-hidden="true"></i>
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="agrolease-request-summary-body">
+              <h4>{{ land.location }}</h4>
+              <div class="agrolease-request-meta-grid">
+                <div>
+                  <span>Size</span>
+                  <strong>{{ land.size_acres }} acres</strong>
+                </div>
+                <div>
+                  <span>Soil</span>
+                  <strong>{{ land.soil_type }}</strong>
+                </div>
+                <div>
+                  <span>Water</span>
+                  <strong>{{ land.water_source }}</strong>
+                </div>
+                <div>
+                  <span>Rent</span>
+                  <strong>₹{{ land.rent_amount|floatformat:0 }}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="agrolease-form-card">
+          <div class="agrolease-form-card-heading">
+            <span>02</span>
+            <div>
+              <h3>Lease request details</h3>
+              <p>Tell the owner about your farming background and plan.</p>
+            </div>
+          </div>
+
+          <form method="post" class="agrolease-form agrolease-request-form">
+            {% csrf_token %}
+
+            <div class="agrolease-field agrolease-field-full">
+              <label for="farmer_name">Your Full Name <span>*</span></label>
+              <input type="text" id="farmer_name" name="farmer_name" required placeholder="Enter your full name">
+            </div>
+
+            <div class="agrolease-field">
+              <label for="contact_number">Contact Number <span>*</span></label>
+              <div class="agrolease-phone-field">
+                <span class="agrolease-phone-prefix">+91</span>
+                <input type="tel" id="contact_number" name="contact_number" required pattern="[6-9][0-9]{9}" placeholder="10-digit mobile number" inputmode="tel">
+              </div>
+            </div>
+
+            <div class="agrolease-field">
+              <label for="farming_experience">Farming Experience <span>*</span></label>
+              <select id="farming_experience" name="farming_experience" required>
+                <option value="">Select your experience</option>
+                <option value="beginner">Beginner (0-2 years)</option>
+                <option value="intermediate">Intermediate (2-5 years)</option>
+                <option value="experienced">Experienced (5+ years)</option>
+                <option value="expert">Expert (10+ years)</option>
+              </select>
+            </div>
+
+            <div class="agrolease-field agrolease-field-full">
+              <label for="intended_crops">Intended Crops <span>*</span></label>
+              <input type="text" id="intended_crops" name="intended_crops" required placeholder="e.g., Rice, wheat, vegetables">
+            </div>
+
+            <div class="agrolease-field">
+              <label for="lease_duration">Requested Lease Duration</label>
+              <select id="lease_duration" name="lease_duration">
+                <option value="season">One season</option>
+                <option value="year">One year</option>
+                <option value="custom">Custom duration</option>
+              </select>
+            </div>
+
+            <div class="agrolease-field agrolease-field-full">
+              <label for="message">Message to Land Owner <span>*</span></label>
+              <textarea id="message" name="message" rows="5" required placeholder="Share your farming plan, experience, and why this land fits your needs."></textarea>
+            </div>
+
+            <div class="agrolease-field agrolease-field-full">
+              <label class="agrolease-consent-label">
+                <input type="checkbox" name="terms_agreed" required>
+                <span>I agree to the AgroLease terms and confirm I will use the land responsibly.</span>
+              </label>
+            </div>
+
+            <div class="agrolease-form-actions agrolease-request-form-actions">
+              <a href="{% url 'agrolease:search_land' %}" class="agrolease-secondary-action">Cancel</a>
+              <button type="submit" class="agrolease-primary-action"><i class="bi bi-send" aria-hidden="true"></i> Submit request</button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <aside class="agrolease-form-aside">
+        <div class="agrolease-form-card agrolease-guidance-card">
+          <i class="bi bi-shield-check" aria-hidden="true"></i>
+          <h3>What happens next?</h3>
+          <ul>
+            <li>The owner reviews your request and contact details.</li>
+            <li>You can discuss rent, crop plan, and lease duration.</li>
+            <li>Both parties can finalize a digital agreement before cultivation begins.</li>
+          </ul>
+        </div>
+
+        <div class="agrolease-form-card agrolease-compact-card">
+          <div class="agrolease-request-checklist">
+            <div class="agrolease-check-item">
+              <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+              <span>Verified crop suitability</span>
+            </div>
+            <div class="agrolease-check-item">
+              <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+              <span>Water and soil match</span>
+            </div>
+            <div class="agrolease-check-item">
+              <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+              <span>Faster owner response</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
 {% endblock %}

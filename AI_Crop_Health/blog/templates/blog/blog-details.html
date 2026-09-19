@@ -1,0 +1,388 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}{{ post.title }} - AgriCulture{% endblock %}
+{% block body_class %}blog-details-page{% endblock %}
+
+{% block content %}
+
+    <!-- Page Title -->
+    <div class="page-title dark-background" data-aos="fade" style="background-image: url('{% static 'assets/img/page-title-bg.webp' %}');">
+      <div class="container position-relative">
+        <h1>Blog Details</h1>
+        <nav class="breadcrumbs">
+          <ol>
+            <li><a href="{% url 'index' %}">Home</a></li>
+            <li class="current">Blog Details</li>
+          </ol>
+        </nav>
+      </div>
+    </div><!-- End Page Title -->
+
+    <div class="container">
+      <div class="row">
+
+        <div class="col-lg-8">
+
+          <!-- Blog Details Section -->
+          <section id="blog-details" class="blog-details section">
+            <div class="container">
+
+              <article class="article">
+
+                <div class="post-img">
+                  {% if post.image %}
+                    <img src="{{ post.image.url }}" alt="{{ post.title }}" class="img-fluid w-100" style="height: 400px; object-fit: cover;">
+                  {% else %}
+                    <img src="{% static 'assets/img/blog/blog-1.jpg' %}" alt="{{ post.title }}" class="img-fluid w-100" style="height: 400px; object-fit: cover;">
+                  {% endif %}
+                </div>
+
+                <h2 class="title">{{ post.title }}</h2>
+
+                <div class="meta-top">
+                  <ul>
+                    <li class="d-flex align-items-center"><i class="bi bi-person"></i> <a href="#">{{ post.author.get_full_name|default:post.author.username }}</a></li>
+                    <li class="d-flex align-items-center"><i class="bi bi-clock"></i> <a href="#"><time datetime="{{ post.publish_date|date:'Y-m-d' }}">{{ post.publish_date|date:"M d, Y" }}</time></a></li>
+                    <li class="d-flex align-items-center"><i class="bi bi-chat-dots"></i> <a href="#">{{ comments|length }} Comments</a></li>
+                  </ul>
+                </div><!-- End meta top -->
+
+                <div class="content">
+                  {{ post.content|safe }}
+                </div><!-- End post content -->
+
+                <div class="meta-bottom">
+                  <i class="bi bi-folder"></i>
+                  <ul class="cats">
+                    <li><a href="{% url 'blog:category_detail' post.category.slug %}">{{ post.category.name }}</a></li>
+                  </ul>
+
+                  <i class="bi bi-tags"></i>
+                  <ul class="tags">
+                    {% for tag in post.get_tags_list %}
+                      <li><a href="{% url 'blog:tag_detail' tag %}">{{ tag }}</a></li>
+                    {% endfor %}
+                  </ul>
+                </div><!-- End meta bottom -->
+
+              </article>
+
+            </div>
+          </section><!-- /Blog Details Section -->
+
+          <!-- Blog Comments Section -->
+          <section id="blog-comments" class="blog-comments section">
+
+            <div class="container">
+
+              <h4 class="comments-count">{{ comments|length }} Comments</h4>
+
+              {% for comment in comments %}
+              {% if not comment.parent %}
+              <div id="comment-{{ comment.pk }}" class="comment">
+                <div class="d-flex">
+                  <div class="comment-img">
+                    {% if comment.author_website %}
+                      <img src="https://www.gravatar.com/avatar/{{ comment.author_email|lower }}?s=60&d=identicon" alt="">
+                    {% else %}
+                      <img src="{% static 'assets/img/blog/comments-1.jpg' %}" alt="">
+                    {% endif %}
+                  </div>
+                  <div>
+                    <h5><a href="{{ comment.author_website|default:'#' }}">{{ comment.author_name }}</a> <button type="button" class="reply" data-comment-id="{{ comment.pk }}" style="background: none; border: none; color: #007bff; text-decoration: underline; cursor: pointer;"><i class="bi bi-reply-fill"></i> Reply</button></h5>
+                    <time datetime="{{ comment.created_date|date:'Y-m-d' }}">{{ comment.created_date|date:"M d, Y" }}</time>
+                    <p>{{ comment.content }}</p>
+                  </div>
+                </div>
+
+                {% for reply in comment.get_replies %}
+                <div id="comment-reply-{{ reply.pk }}" class="comment comment-reply">
+                  <div class="d-flex">
+                    <div class="comment-img">
+                      {% if reply.author_website %}
+                        <img src="https://www.gravatar.com/avatar/{{ reply.author_email|lower }}?s=60&d=identicon" alt="">
+                      {% else %}
+                        <img src="{% static 'assets/img/blog/comments-2.jpg' %}" alt="">
+                      {% endif %}
+                    </div>
+                    <div>
+                      <h5><a href="{{ reply.author_website|default:'#' }}">{{ reply.author_name }}</a> <button type="button" class="reply" data-comment-id="{{ reply.pk }}" style="background: none; border: none; color: #007bff; text-decoration: underline; cursor: pointer;"><i class="bi bi-reply-fill"></i> Reply</button></h5>
+                      <time datetime="{{ reply.created_date|date:'Y-m-d' }}">{{ reply.created_date|date:"M d, Y" }}</time>
+                      <p>{{ reply.content }}</p>
+                    </div>
+                  </div>
+                </div><!-- End comment reply -->
+                {% endfor %}
+
+              </div><!-- End comment -->
+              {% endif %}
+              {% empty %}
+              <p>No comments yet. Be the first to comment!</p>
+              {% endfor %}
+
+            </div>
+
+          </section><!-- /Blog Comments Section -->
+
+          <!-- Comment Form Section -->
+          <section id="comment-form" class="comment-form section">
+            <div class="container">
+
+              <form action="{% url 'blog:add_comment' post.pk %}" method="post" id="commentForm" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="parent_id" id="parentId" value="">
+
+                <h4 id="commentFormTitle">Post Comment</h4>
+                <p>Your email address will not be published. Required fields are marked * </p>
+                <div class="row">
+                  <div class="col-md-6 form-group">
+                    <input name="name" type="text" class="form-control" placeholder="Your Name*" required minlength="2" maxlength="100">
+                    <div class="invalid-feedback">Please enter your name (2-100 characters).</div>
+                  </div>
+                  <div class="col-md-6 form-group">
+                    <input name="email" type="email" class="form-control" placeholder="Your Email*" required>
+                    <div class="invalid-feedback">Please enter a valid email address.</div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col form-group">
+                    <input name="website" type="url" class="form-control" placeholder="Your Website (optional)">
+                    <div class="invalid-feedback">Please enter a valid URL.</div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col form-group">
+                    <textarea name="comment" class="form-control" placeholder="Your Comment*" required minlength="10" maxlength="1000" rows="4"></textarea>
+                    <div class="invalid-feedback">Please enter a comment (10-1000 characters).</div>
+                  </div>
+                </div>
+
+                <div class="text-center">
+                  <button type="submit" class="btn btn-primary" id="submitBtn">
+                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    Post Comment
+                  </button>
+                  <button type="button" class="btn btn-secondary ms-2" id="cancelReply" style="display: none;">Cancel Reply</button>
+                </div>
+
+              </form>
+
+            </div>
+          </section><!-- /Comment Form Section -->
+
+        </div>
+
+        <div class="col-lg-4 sidebar">
+
+          <div class="widgets-container">
+
+            <!-- Blog Author Widget -->
+            <div class="blog-author-widget widget-item">
+
+              <div class="d-flex flex-column align-items-center">
+                <div class="d-flex align-items-center w-100">
+                  {% if post.author.userprofile.profile_image %}
+                    <img src="{{ post.author.userprofile.profile_image.url }}" class="rounded-circle shrink-0" alt="{{ post.author.get_full_name|default:post.author.username }}">
+                  {% else %}
+                    <img src="{% static 'assets/img/blog/blog-author.jpg' %}" class="rounded-circle shrink-0" alt="{{ post.author.get_full_name|default:post.author.username }}">
+                  {% endif %}
+                  <div>
+                    <h4>{{ post.author.get_full_name|default:post.author.username }}</h4>
+                    <div class="social-links">
+                      {% if post.author.userprofile.twitter %}
+                        <a href="{{ post.author.userprofile.twitter }}"><i class="bi bi-twitter-x"></i></a>
+                      {% endif %}
+                      {% if post.author.userprofile.facebook %}
+                        <a href="{{ post.author.userprofile.facebook }}"><i class="bi bi-facebook"></i></a>
+                      {% endif %}
+                      {% if post.author.userprofile.instagram %}
+                        <a href="{{ post.author.userprofile.instagram }}"><i class="bi bi-instagram"></i></a>
+                      {% endif %}
+                      {% if post.author.userprofile.linkedin %}
+                        <a href="{{ post.author.userprofile.linkedin }}"><i class="bi bi-linkedin"></i></a>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+
+                <p>
+                  {% if post.author.userprofile.bio %}
+                    {{ post.author.userprofile.bio }}
+                  {% else %}
+                    Passionate writer and content creator sharing insights on {{ post.category.name }} and related topics.
+                  {% endif %}
+                </p>
+
+              </div>
+
+            </div><!--/Blog Author Widget -->
+
+            <!-- Search Widget -->
+            <div class="search-widget widget-item">
+
+              <h3 class="widget-title">Search</h3>
+              <form action="{% url 'blog:search' %}">
+                <input type="text" name="q" placeholder="Search...">
+                <button type="submit" title="Search"><i class="bi bi-search"></i></button>
+              </form>
+
+            </div><!--/Search Widget -->
+
+            <!-- Categories Widget -->
+            <div class="categories-widget widget-item">
+
+              <h3 class="widget-title">Categories</h3>
+              <ul class="mt-3">
+                {% for category in sidebar_categories %}
+                <li><a href="{% url 'blog:category_detail' category.slug %}">{{ category.name }} <span>({{ category.post_count }})</span></a></li>
+                {% empty %}
+                <li><a href="#">No categories yet</a></li>
+                {% endfor %}
+              </ul>
+
+            </div><!--/Categories Widget -->
+
+            <!-- Recent Posts Widget 2 -->
+            <div class="recent-posts-widget-2 widget-item">
+
+              <h3 class="widget-title">Recent Posts</h3>
+
+              {% for recent_post in recent_posts %}
+              <div class="post-item">
+                <h4><a href="{% url 'blog:detail' recent_post.pk %}">{{ recent_post.title }}</a></h4>
+                <time datetime="{{ recent_post.publish_date|date:'Y-m-d' }}">{{ recent_post.publish_date|date:"M d, Y" }}</time>
+              </div><!-- End recent post item-->
+              {% empty %}
+              <div class="post-item">
+                <p>No recent posts available</p>
+              </div>
+              {% endfor %}
+
+            </div><!--/Recent Posts Widget 2 -->
+
+            <!-- Tags Widget -->
+            <div class="tags-widget widget-item">
+
+              <h3 class="widget-title">Tags</h3>
+              <ul>
+                {% for tag in sidebar_tags %}
+                <li><a href="{% url 'blog:tag_detail' tag %}">{{ tag }}</a></li>
+                {% empty %}
+                <li><a href="#">No tags yet</a></li>
+                {% endfor %}
+              </ul>
+
+            </div><!--/Tags Widget -->
+
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+{% endblock %}
+
+<script>
+// Simple test to check if script loads
+console.log('Comment reply script loaded successfully');
+
+// Comment reply functionality
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing reply functionality');
+
+    const replyButtons = document.querySelectorAll('.reply');
+    console.log('Found reply buttons:', replyButtons.length);
+
+    if (replyButtons.length === 0) {
+        console.error('No reply buttons found on page!');
+        return;
+    }
+
+    const commentForm = document.getElementById('commentForm');
+    const commentFormTitle = document.getElementById('commentFormTitle');
+    const parentIdInput = document.getElementById('parentId');
+    const cancelReplyBtn = document.getElementById('cancelReply');
+
+    console.log('Form elements found:', {
+        commentForm: !!commentForm,
+        commentFormTitle: !!commentFormTitle,
+        parentIdInput: !!parentIdInput,
+        cancelReplyBtn: !!cancelReplyBtn
+    });
+
+    replyButtons.forEach((button, index) => {
+        console.log(`Setting up button ${index} with ID:`, button.getAttribute('data-comment-id'));
+
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Reply button clicked:', index);
+
+            const commentId = this.getAttribute('data-comment-id');
+            console.log('Comment ID from button:', commentId);
+
+            if (!commentId) {
+                console.error('No comment ID found on button!');
+                return;
+            }
+
+            // Set parent ID
+            if (parentIdInput) {
+                parentIdInput.value = commentId;
+                console.log('Set parent ID to:', commentId);
+            }
+
+            // Update form title
+            if (commentFormTitle) {
+                commentFormTitle.textContent = 'Reply to Comment';
+                console.log('Updated form title');
+            }
+
+            // Show cancel button
+            if (cancelReplyBtn) {
+                cancelReplyBtn.style.display = 'inline-block';
+                console.log('Showed cancel button');
+            }
+
+            // Scroll to form
+            if (commentForm) {
+                commentForm.scrollIntoView({ behavior: 'smooth' });
+                console.log('Scrolled to form');
+            }
+
+            // Focus on textarea
+            const textarea = commentForm ? commentForm.querySelector('textarea[name="comment"]') : null;
+            if (textarea) {
+                textarea.focus();
+                textarea.placeholder = 'Write your reply...';
+                console.log('Focused on textarea');
+            } else {
+                console.error('Textarea not found!');
+            }
+        });
+    });
+
+    // Cancel reply functionality
+    if (cancelReplyBtn) {
+        cancelReplyBtn.addEventListener('click', function() {
+            console.log('Cancel reply clicked');
+            if (parentIdInput) parentIdInput.value = '';
+            if (commentFormTitle) commentFormTitle.textContent = 'Post Comment';
+            cancelReplyBtn.style.display = 'none';
+
+            const textarea = commentForm ? commentForm.querySelector('textarea[name="comment"]') : null;
+            if (textarea) {
+                textarea.value = '';
+                textarea.placeholder = 'Your Comment*';
+            }
+        });
+    }
+
+    console.log('Reply functionality initialized successfully');
+});
+</script>
+
+</html>

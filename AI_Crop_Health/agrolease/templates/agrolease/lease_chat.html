@@ -1,0 +1,37 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Lease Conversation - AgriCulture{% endblock %}
+{% block body_class %}agrolease-lease-chat-page{% endblock %}
+
+{% block content %}
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Lease conversation</h1>
+    <p>{{ lease_request.land.location }} · {{ lease_request.farmer.get_full_name|default:lease_request.farmer.username }}</p>
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="{% url 'index' %}">Home</a></li><li><a href="{% if is_owner %}{% url 'agrolease:owner_requests' %}{% else %}{% url 'agrolease:farmer_dashboard' %}{% endif %}">{% if is_owner %}Lease Requests{% else %}Farmer Dashboard{% endif %}</a></li><li class="current" aria-current="page">Conversation</li></ol></nav>
+  </div>
+</div>
+<section class="agrolease-dashboard-section">
+  <div class="container">
+    <div class="agrolease-chat-layout">
+      <aside class="agrolease-panel agrolease-chat-context">
+        <div class="agrolease-chat-context-avatar">{{ counterparty.first_name|default:counterparty.username|first|upper }}</div>
+        <p class="agrolease-eyebrow">{% if is_owner %}Farmer{% else %}Land owner{% endif %}</p>
+        <h2>{{ counterparty.get_full_name|default:counterparty.username }}</h2>
+        <p class="agrolease-chat-context-email">{{ counterparty.email|default:"Email not provided" }}</p>
+        <div class="agrolease-chat-context-status"><span>Status</span><strong class="agrolease-request-status agrolease-request-status-{{ lease_request.status }}">{{ lease_request.get_status_display }}</strong></div>
+        <dl class="agrolease-chat-lease-facts"><div><dt>Location</dt><dd>{{ lease_request.land.location }}</dd></div><div><dt>Size</dt><dd>{{ lease_request.land.size_acres }} acres</dd></div><div><dt>Rent</dt><dd>₹{{ lease_request.land.rent_amount|floatformat:0 }} {{ lease_request.land.rent_frequency }}</dd></div><div><dt>Duration</dt><dd>{{ lease_request.land.duration_months }} months</dd></div></dl>
+        <a href="{% if is_owner %}{% url 'agrolease:owner_request_detail' lease_request.id %}{% else %}{% url 'agrolease:farmer_dashboard' %}{% endif %}" class="agrolease-chat-back"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to request</a>
+      </aside>
+      <section class="agrolease-panel agrolease-chat-panel">
+        <div class="agrolease-panel-heading"><div><p class="agrolease-eyebrow">Private conversation</p><h2>Discuss the lease</h2><p class="agrolease-detail-subtitle"><i class="bi bi-shield-check" aria-hidden="true"></i> Messages are visible only to both parties</p></div><span class="agrolease-chat-online"><i class="bi bi-circle-fill" aria-hidden="true"></i> Secure chat</span></div>
+        <div class="agrolease-chat-messages">
+          {% for message in chat_messages %}<article class="agrolease-chat-message {% if message.sender_id == request.user.id %}is-mine{% endif %}"><strong>{{ message.sender.get_full_name|default:message.sender.username }}</strong><p>{{ message.body|linebreaksbr }}</p><time>{{ message.created_at|date:"d M Y, g:i A" }}</time></article>{% empty %}<p class="agrolease-chat-empty"><i class="bi bi-chat-square-text" aria-hidden="true"></i><strong>Start the conversation</strong><span>Confirm the farming plan, rent, and lease duration before approval.</span></p>{% endfor %}
+        </div>
+        <form method="post" class="agrolease-chat-form">{% csrf_token %}<label for="chat-body">Your message</label><div class="agrolease-chat-compose"><textarea id="chat-body" name="body" rows="2" maxlength="2000" required placeholder="Write a message..."></textarea><button type="submit" class="agrolease-primary-action" aria-label="Send message"><i class="bi bi-send" aria-hidden="true"></i><span>Send</span></button></div><small>Keep communication respectful and related to this lease.</small></form>
+      </section>
+    </div>
+  </div>
+</section>
+{% endblock %}

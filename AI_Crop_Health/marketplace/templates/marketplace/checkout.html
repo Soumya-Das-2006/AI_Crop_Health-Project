@@ -1,0 +1,177 @@
+{% extends 'layouts/layout.html' %}
+{% load static %}
+{% block title %}Checkout - AgriCulture{% endblock %}
+{% block body_class %}marketplace-page bg-light{% endblock %}
+{% block extra_css %}
+{% endblock %}
+{% block content %}
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Secure Checkout</h1>
+    <p>Place your order securely and get delivery support for your farm.</p>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li><a href="{% url 'marketplace:catalog' %}">Marketplace</a></li>
+        <li class="current" aria-current="page">Checkout</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+<section class="marketplace-section py-5">
+    <div class="container">
+        <h1 class="mb-4 text-center">Secure Checkout</h1>
+        
+        <form method="post" action="{% url 'marketplace:checkout' %}">
+            {% csrf_token %}
+            <div class="row">
+                <!-- Left Column: Delivery and Payment -->
+                <div class="col-lg-8 mb-4">
+                    
+                    <!-- Delivery Address -->
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                            <h4 class="mb-0 fw-bold"><span class="badge bg-primary rounded-circle me-2">1</span> Delivery Address</h4>
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="full_name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="full_name" name="full_name" required value="{{ request.user.get_full_name|default:'' }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="phone" class="form-label">Phone Number <span class="text-danger">*</span></label>
+                                    <input type="tel" class="form-control" id="phone" name="phone" required placeholder="10-digit mobile number">
+                                </div>
+                                <div class="col-12">
+                                    <label for="address" class="form-label">Flat, House no., Building, Company, Apartment <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="address" name="address" required>
+                                </div>
+                                <div class="col-12">
+                                    <label for="area" class="form-label">Area, Street, Sector, Village</label>
+                                    <input type="text" class="form-control" id="area" name="area">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="city" class="form-label">Town/City <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="city" name="city" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="pincode" class="form-label">PIN Code <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="pincode" name="pincode" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="state" class="form-label">State <span class="text-danger">*</span></label>
+                                    <select id="state" name="state" class="form-select" required>
+                                        <option value="" selected disabled>Choose...</option>
+                                        <option value="Andhra Pradesh">Andhra Pradesh</option>
+                                        <option value="Karnataka">Karnataka</option>
+                                        <option value="Maharashtra">Maharashtra</option>
+                                        <option value="Tamil Nadu">Tamil Nadu</option>
+                                        <option value="Telangana">Telangana</option>
+                                        <option value="Uttar Pradesh">Uttar Pradesh</option>
+                                        <option value="West Bengal">West Bengal</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="country" class="form-label">Country</label>
+                                    <input type="text" class="form-control bg-light" id="country" name="country" value="India" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Method -->
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                            <h4 class="mb-0 fw-bold"><span class="badge bg-primary rounded-circle me-2">2</span> Payment Method</h4>
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="form-check mb-3 p-3 border rounded border-primary bg-light">
+                                <input class="form-check-input ms-1" type="radio" name="payment_method" id="pay_cod" value="COD" checked>
+                                <label class="form-check-label fw-bold ms-3" for="pay_cod">
+                                    Cash on Delivery (COD)
+                                    <small class="d-block text-muted fw-normal mt-1">Pay at the time of delivery using cash or UPI.</small>
+                                </label>
+                            </div>
+                            <div class="form-check p-3 border rounded opacity-50">
+                                <input class="form-check-input ms-1" type="radio" name="payment_method" id="pay_online" value="ONLINE" disabled>
+                                <label class="form-check-label fw-bold ms-3" for="pay_online">
+                                    Credit / Debit Card / Net Banking / UPI
+                                    <small class="d-block text-danger fw-normal mt-1">Temporarily unavailable for maintenance.</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right Column: Order Summary -->
+                <div class="col-lg-4">
+                    <div class="card shadow-sm border-0 sticky-top" style="top: 2rem;">
+                        <div class="card-body p-4">
+                            <h5 class="fw-bold mb-4">Order Summary</h5>
+                            
+                            <div class="order-items-scrollable mb-4" style="max-height: 250px; overflow-y: auto;">
+                                {% for item in lines %}
+                                <div class="d-flex justify-content-between mb-3 text-sm">
+                                    <div>
+                                        <span class="d-block fw-bold">{{ item.product.name }}</span>
+                                        <span class="text-muted small">Qty: {{ item.quantity }} x ₹{{ item.product.price|floatformat:2 }}</span>
+                                    </div>
+                                    <span class="fw-bold">₹{{ item.line_total|floatformat:2 }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <hr>
+                            
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Items Subtotal</span>
+                                <span>₹{{ item_subtotal|floatformat:2 }}</span>
+                            </div>
+                            
+                            {% if discount > 0 %}
+                            <div class="d-flex justify-content-between mb-2 text-success">
+                                <span>Discount</span>
+                                <span>-₹{{ discount|floatformat:2 }}</span>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Delivery Charges</span>
+                                {% if shipping == 0 %}
+                                <span class="text-success fw-bold">FREE</span>
+                                {% else %}
+                                <span>₹{{ shipping|floatformat:2 }}</span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="d-flex justify-content-between mb-4 pb-3 border-bottom">
+                                <span class="text-muted">Tax</span>
+                                <span>₹{{ tax|floatformat:2 }}</span>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between mb-4">
+                                <span class="fw-bold fs-5">Order Total</span>
+                                <span class="fw-bold fs-5 text-primary">₹{{ grand_total|floatformat:2 }}</span>
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-warning btn-lg fw-bold text-dark shadow-sm">
+                                    Place Order and Pay ₹{{ grand_total|floatformat:2 }}
+                                </button>
+                            </div>
+                            
+                            <div class="mt-4 text-center text-muted small">
+                                <i class="bi bi-shield-lock-fill text-success"></i> 
+                                Secure checkout powered by AgriCulture
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}

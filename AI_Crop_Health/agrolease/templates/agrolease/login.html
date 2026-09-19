@@ -5,83 +5,94 @@
 {% block body_class %}agrolease-login-page{% endblock %}
 
 {% block content %}
-
-<div class="page-title dark-background"
-     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
   <div class="container position-relative">
     <h1>AgroLease Login</h1>
     <p>Access your agricultural land leasing account</p>
-    <nav class="breadcrumbs">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
       <ol>
         <li><a href="{% url 'index' %}">Home</a></li>
-        <li><a href="/">AgroLease</a></li>
-        <li class="current">Login</li>
+        <li><a href="{% url 'agrolease:role_selection' %}">AgroLease</a></li>
+        <li class="current" aria-current="page">Login</li>
       </ol>
-    <a href="{% url \'agrolease:logout\' %}" class="btn btn-outline-danger ms-2">Logout</a>\1
+    </nav>
   </div>
 </div>
 
-<section class="section">
+<section class="agrolease-auth-section">
   <div class="container">
-    <div class="row justify-content-center">
-      <div class="col-lg-6">
-        <div class="bg-white rounded-lg shadow-lg p-6">
-            <div class="text-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-800">Login to AgroLease</h2>
-                <p class="text-gray-600 mt-2">Enter your mobile number to continue</p>
-            </div>
+    <div class="agrolease-auth-card">
+      <div class="agrolease-auth-heading">
+        <h2>Login to AgroLease</h2>
+        <p>Enter your mobile number to continue securely.</p>
+      </div>
 
-            
-{% if messages %}
-<div class="messages mb-4">
-    {% for message in messages %}
-    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-    {% endfor %}
-</div>
-{% endif %}
-\1
-                {% csrf_token %}
-
-                <div>
-                    <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">
-                        Mobile Number
-                    </label>
-                    <div class="flex">
-                        <span class="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md">
-                            +91
-                        </span>
-                        <input
-                            type="tel"
-                            id="phone"
-                            name="phone"
-                            required
-                            pattern="[6-9][0-9]{9}"
-                            class="flex-1 min-w-0 block w-full px-3 py-2 border border-gray-300 rounded-none rounded-r-md focus:ring-green-500 focus:border-green-500"
-                            placeholder="Enter 10-digit number"
-                        >
-                    </div>
-                </div>
-
-                <button
-                    type="submit"
-                    class="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium"
-                >
-                    Send OTP
-                </button>
-            </form>
-
-            <div class="text-center mt-6">
-                <p class="text-gray-600 text-sm">
-                    Don't have an account?
-                    <a href="{% url 'agrolease:register' %}" class="text-green-600 hover:text-green-700 font-medium">
-                        Register here
-                    </a>
-                </p>
-            </div>
+      {% if messages %}
+      <div class="agrolease-messages" aria-live="polite">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if otp_sent %}
+      <div class="alert alert-info" role="status">
+        OTP sent for <strong>{{ otp_phone }}</strong>. It expires in 5 minutes.
+      </div>
+      {% if development_otp %}
+      <div class="alert alert-warning" role="status">
+        Development OTP: <strong>{{ development_otp }}</strong>
+      </div>
+      {% endif %}
+      <form method="post" action="{% url 'agrolease:otp' %}" class="agrolease-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+        <div class="agrolease-field">
+          <label for="otp">One-time password</label>
+          <input type="text" id="otp" name="otp" required pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Enter 6-digit OTP">
+        </div>
+        <button type="submit" class="agrolease-submit">Verify OTP</button>
+      </form>
+      <p class="agrolease-auth-footer"><a href="{% url 'agrolease:login' %}">Request a new OTP</a></p>
+      {% else %}
+      <form method="post" class="agrolease-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+        <div class="agrolease-field">
+          <label for="phone">Mobile Number</label>
+          <div class="agrolease-phone-field">
+            <span class="agrolease-phone-prefix">+91</span>
+            <input type="tel" id="phone" name="phone" required pattern="(?:\+91[\s-]?)?[6-9][0-9]{9}" placeholder="10 digits or +91 10 digits" autocomplete="tel" inputmode="tel">
+          </div>
+        </div>
+        <fieldset class="agrolease-role-field">
+          <legend>Continue as</legend>
+          <div class="agrolease-role-options">
+            {% if not available_roles or 'owner' in available_roles %}<label class="agrolease-role-option {% if selected_role == 'owner' %}is-selected{% endif %}">
+              <input type="radio" name="role" value="owner" required {% if selected_role == 'owner' %}checked{% endif %}>
+              <span class="agrolease-radio-mark" aria-hidden="true"></span>
+              <span><strong>Land Owner</strong><small>List and manage land</small></span>
+            </label>{% endif %}
+            {% if not available_roles or 'farmer' in available_roles %}<label class="agrolease-role-option {% if selected_role == 'farmer' %}is-selected{% endif %}">
+              <input type="radio" name="role" value="farmer" required {% if selected_role == 'farmer' %}checked{% endif %}>
+              <span class="agrolease-radio-mark" aria-hidden="true"></span>
+              <span><strong>Farmer</strong><small>Find and lease land</small></span>
+            </label>{% endif %}
+          </div>
+          <small class="agrolease-field-help">Choose the workspace connected to your account.</small>
+        </fieldset>
+        <button type="submit" class="agrolease-submit">Send OTP</button>
+      </form>
+      {% endif %}
+
+      <p class="agrolease-auth-footer">
+        Don't have an account?
+        <a href="{% url 'agrolease:register' %}">Register here</a>
+      </p>
     </div>
-</div>
+  </div>
+</section>
 {% endblock %}

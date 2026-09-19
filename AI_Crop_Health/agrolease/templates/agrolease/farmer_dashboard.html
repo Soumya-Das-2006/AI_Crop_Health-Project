@@ -2,159 +2,228 @@
 {% load static %}
 
 {% block title %}Farmer Dashboard - AgriCulture{% endblock %}
-{% block body_class %}agrolease-farmer-dashboard-page{% endblock %}
+{% block body_class %}agrolease-farmer-dashboard-page bg-light{% endblock %}
 
 {% block content %}
-
-<div class="page-title dark-background"
-     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
   <div class="container position-relative">
     <h1>Farmer Dashboard</h1>
     <p>Find and manage agricultural land leases</p>
-    <nav class="breadcrumbs">
-      <ol>
-        <li><a href="{% url 'index' %}">Home</a></li>
-        <li><a href="/">AgroLease</a></li>
-        <li class="current">Farmer Dashboard</li>
-      </ol>
-    <a href="{% url \'agrolease:logout\' %}" class="btn btn-outline-danger ms-2">Logout</a>\1
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="{% url 'index' %}">Home</a></li><li><a href="{% url 'agrolease:role_selection' %}">AgroLease</a></li><li class="current" aria-current="page">Farmer Dashboard</li></ol></nav>
   </div>
 </div>
 
-<section class="section">
+<section class="py-5">
   <div class="container">
-    <!-- Header -->
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800">Farmer Dashboard</h1>
-        <p class="text-gray-600 mt-2">Find and manage agricultural land leases</p>
+    {% with farmer_nav_page='dashboard' %}{% include 'agrolease/farmer_nav.html' %}{% endwith %}
+    
+    <div class="row mb-4 align-items-center mt-4">
+        <div class="col-md-8">
+            <h2 class="fw-bold text-success mb-1">
+                Good to see you, {{ request.user.first_name|default:request.user.username }}! <i class="fas fa-hand-sparkles text-warning ms-2"></i>
+            </h2>
+            <p class="text-muted fs-5">Find productive land and keep track of every request in one place.</p>
+        </div>
+        <div class="col-md-4 text-md-end mt-3 mt-md-0">
+            <a href="{% url 'agrolease:search_land' %}" class="btn btn-success btn-lg rounded-pill shadow-sm px-4">
+                <i class="fas fa-search me-2"></i> Find Land
+            </a>
+        </div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="p-3 bg-blue-100 rounded-full">
-                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                    </svg>
+    <!-- Stats Row -->
+    <div class="row g-4 mb-5">
+        <div class="col-lg-4 col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 position-relative overflow-hidden group-hover-effect">
+                <div class="card-body p-4 d-flex align-items-center">
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-4" style="width: 70px; height: 70px;">
+                        <i class="fas fa-paper-plane fa-2x"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted fw-bold mb-1 text-uppercase letter-spacing-1">Total Requests</h6>
+                        <h2 class="fw-bold text-dark mb-0 display-5">{{ total_requests }}</h2>
+                    </div>
                 </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Total Requests</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ total_requests }}</p>
+                <div class="position-absolute bottom-0 start-0 w-100 bg-primary" style="height: 4px; opacity: 0.8;"></div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 position-relative overflow-hidden group-hover-effect">
+                <div class="card-body p-4 d-flex align-items-center">
+                    <div class="bg-success bg-opacity-10 text-success rounded-circle d-flex align-items-center justify-content-center me-4" style="width: 70px; height: 70px;">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted fw-bold mb-1 text-uppercase letter-spacing-1">Active Leases</h6>
+                        <h2 class="fw-bold text-dark mb-0 display-5">{{ active_count }}</h2>
+                    </div>
+                </div>
+                <div class="position-absolute bottom-0 start-0 w-100 bg-success" style="height: 4px; opacity: 0.8;"></div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 position-relative overflow-hidden group-hover-effect">
+                <div class="card-body p-4 d-flex align-items-center">
+                    <div class="bg-warning bg-opacity-10 text-warning rounded-circle d-flex align-items-center justify-content-center me-4" style="width: 70px; height: 70px;">
+                        <i class="fas fa-hourglass-half fa-2x"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted fw-bold mb-1 text-uppercase letter-spacing-1">Awaiting Response</h6>
+                        <h2 class="fw-bold text-dark mb-0 display-5">{{ pending_count }}</h2>
+                    </div>
+                </div>
+                <div class="position-absolute bottom-0 start-0 w-100 bg-warning" style="height: 4px; opacity: 0.8;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="row g-4">
+        <!-- Recent Requests -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white border-0 pt-4 pb-0 px-4 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-clipboard-list text-success me-2"></i> Your Lease Requests</h5>
+                    <a href="{% url 'agrolease:search_land' %}" class="text-success text-decoration-none fw-semibold">
+                        Find More <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div class="card-body p-4">
+                    {% if farmer_requests %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light text-muted">
+                                    <tr>
+                                        <th class="border-0 rounded-start">Land Details</th>
+                                        <th class="border-0">Rent / Freq</th>
+                                        <th class="border-0">Status</th>
+                                        <th class="border-0 rounded-end text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for lease_req in farmer_requests %}
+                                    <tr class="border-bottom">
+                                        <td class="py-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-light rounded-3 p-3 me-3 text-success">
+                                                    <i class="fas fa-map-marker-alt fa-lg"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="fw-bold mb-1 text-dark">{{ lease_req.land.location }}</h6>
+                                                    <small class="text-muted">{{ lease_req.land.size_acres }} acres &bull; {{ lease_req.land.soil_type }}</small><br>
+                                                    <small class="text-muted" style="font-size: 0.75rem;"><i class="far fa-clock me-1"></i> {{ lease_req.request_date|date:"d M Y, g:i A" }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="py-3">
+                                            <span class="fw-bold text-dark">₹{{ lease_req.land.rent_amount|floatformat:0 }}</span>
+                                            <span class="text-muted d-block small">{{ lease_req.land.rent_frequency|title }}</span>
+                                        </td>
+                                        <td class="py-3">
+                                            {% if lease_req.status == 'approved' %}
+                                                <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-2 border border-success border-opacity-25"><i class="fas fa-check-circle me-1"></i> Approved</span>
+                                            {% elif lease_req.status == 'pending' %}
+                                                <span class="badge bg-warning bg-opacity-10 text-warning rounded-pill px-3 py-2 border border-warning border-opacity-25"><i class="fas fa-hourglass-half me-1"></i> Pending</span>
+                                            {% elif lease_req.status == 'owner_approved' %}
+                                                <span class="badge bg-info bg-opacity-10 text-info rounded-pill px-3 py-2 border border-info border-opacity-25"><i class="fas fa-user-check me-1"></i> Owner approved · Admin review</span>
+                                            {% elif lease_req.status == 'rejected' %}
+                                                <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-3 py-2 border border-danger border-opacity-25"><i class="fas fa-times-circle me-1"></i> Rejected</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-3 py-2 border border-secondary border-opacity-25">{{ lease_req.get_status_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-3 text-end">
+                                            {% if lease_req.status == 'approved' %}
+                                                <a href="{% url 'agrolease:agreement_preview' lease_req.id %}" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                                                    View Agreement
+                                                </a>
+                                            {% elif lease_req.status == 'pending' or lease_req.status == 'owner_approved' %}
+                                                <a href="{% url 'agrolease:lease_chat' lease_req.id %}" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                                                    <i class="fas fa-comments me-1"></i> Chat with owner
+                                                </a>
+                                            {% elif lease_req.status == 'completed' %}
+                                                <span class="text-success small fw-semibold">Completed</span>
+                                            {% else %}
+                                                <span class="text-muted small">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <div class="mb-3">
+                                <i class="fas fa-search-location text-muted opacity-25" style="font-size: 4rem;"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark">No Requests Yet</h5>
+                            <p class="text-muted mb-4">Start exploring available agricultural land to find your next opportunity.</p>
+                            <a href="{% url 'agrolease:search_land' %}" class="btn btn-success rounded-pill px-4">
+                                <i class="fas fa-search me-2"></i> Browse Listings
+                            </a>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="p-3 bg-green-100 rounded-full">
-                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
+        <!-- Sidebar Actions -->
+        <div class="col-lg-4">
+            <!-- Explore Widget -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4 bg-success text-white overflow-hidden position-relative">
+                <div class="position-absolute top-0 end-0 opacity-25 p-3">
+                    <i class="fas fa-tractor" style="font-size: 8rem; margin-top: -20px; margin-right: -30px;"></i>
                 </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Active Leases</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ active_count }}</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="p-3 bg-yellow-100 rounded-full">
-                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-600">Pending</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ total_requests|add:active_count|add:-1 }}</p>
+                <div class="card-body p-4 position-relative z-1">
+                    <p class="text-uppercase fw-semibold letter-spacing-1 mb-2 text-white-50 small">Your Next Move</p>
+                    <h4 class="fw-bold mb-3">Find Your Perfect Fit</h4>
+                    <p class="mb-4 text-white-50">Filter by location and soil type to find parcels suited perfectly for your crops.</p>
+                    <a href="{% url 'agrolease:search_land' %}" class="btn btn-light text-success fw-bold rounded-pill px-4 shadow-sm w-100">
+                        Search Verified Land <i class="fas fa-arrow-right ms-2"></i>
+                    </a>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Action Buttons -->
-    <div class="mb-8">
-        <a href="{% url 'agrolease:search_land' %}" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium inline-flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-            </svg>
-            Search Land
-        </a>
-    </div>
-
-    <!-- My Requests -->
-    <div class="bg-white rounded-lg shadow mb-8">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-xl font-semibold text-gray-800">My Lease Requests</h2>
-        </div>
-        <div class="p-6">
-            {% if requests %}
-                <div class="space-y-4">
-                    {% for lease_req in farmer_requests %}
-                    <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+            <!-- Trust / Info Widget -->
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-4"><i class="fas fa-shield-alt text-primary me-2"></i> Why Choose AgroLease?</h5>
+                    
+                    <div class="d-flex mb-3">
+                        <div class="text-primary me-3 mt-1">
+                            <i class="fas fa-check-circle fa-lg"></i>
+                        </div>
                         <div>
-                            <h3 class="font-medium text-gray-900">Land in Mysore, Karnataka</h3>
-                            <p class="text-sm text-gray-600">{{ lease_req.message }}</p>
-                            <p class="text-xs text-gray-500">{{ lease_req.request_date }}</p>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            {% if lease_req.status == 'pending' %}
-                                <span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">Pending</span>
-                            {% elif lease_req.status == 'approved' %}
-                                <span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Approved</span>
-                                <a href="{% url 'agrolease:agreement_preview' lease_req.id %}" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">View Agreement</a>
-                            {% else %}
-                                <span class="px-2 py-1 text-xs bg-red-100 text-red-800 rounded">Rejected</span>
-                            {% endif %}
+                            <h6 class="fw-bold mb-1">Transparent Leasing</h6>
+                            <p class="text-muted small mb-0">Track your requests and agreements from one secure workspace.</p>
                         </div>
                     </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="text-center py-12">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                    </svg>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900">No requests yet</h3>
-                    <p class="mt-1 text-sm text-gray-500">Start by searching for available land.</p>
-                    <div class="mt-6">
-                        <a href="{% url 'agrolease:search_land' %}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
-                            Search Land
-                        </a>
-                    </div>
-                </div>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Active Leases -->
-    <div class="bg-white rounded-lg shadow">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-xl font-semibold text-gray-800">Active Leases</h2>
-        </div>
-        <div class="p-6">
-            {% if active_leases %}
-                <div class="space-y-4">
-                    {% for lease in active_leases %}
-                    <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    
+                    <div class="d-flex">
+                        <div class="text-primary me-3 mt-1">
+                            <i class="fas fa-file-signature fa-lg"></i>
+                        </div>
                         <div>
-                            <h3 class="font-medium text-gray-900">Land in Coimbatore, Tamil Nadu</h3>
-                            <p class="text-sm text-gray-600">Lease active until Dec 2024</p>
-                            <p class="text-xs text-gray-500">Started: Jan 2024</p>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Active</span>
-                            <button class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">View Details</button>
+                            <h6 class="fw-bold mb-1">Digital Agreements</h6>
+                            <p class="text-muted small mb-0">Hassle-free, legally binding digital contracts between owners and farmers.</p>
                         </div>
                     </div>
-                    {% endfor %}
+
                 </div>
-            {% else %}
-                <p class="text-gray-500 text-center py-8">No active leases.</p>
-            {% endif %}
+            </div>
         </div>
     </div>
-</div>
+  </div>
+</section>
+
+<!-- Additional Custom CSS for Dashboard -->
+<style>
+    .letter-spacing-1 { letter-spacing: 1px; }
+    .group-hover-effect { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+    .group-hover-effect:hover { transform: translateY(-5px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important; }
+    .badge { font-weight: 600; }
+</style>
 {% endblock %}

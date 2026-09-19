@@ -1,0 +1,125 @@
+{% extends 'layouts/layout.html' %}
+{% load static %}
+{% block title %}My Orders - AgriCulture{% endblock %}
+{% block body_class %}marketplace-page bg-light{% endblock %}
+{% block extra_css %}
+{% endblock %}
+{% block content %}
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>My Orders</h1>
+    <p>Track recent purchases and order details for your farm supplies.</p>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li><a href="{% url 'marketplace:catalog' %}">Marketplace</a></li>
+        <li class="current" aria-current="page">Orders</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+<section class="marketplace-section py-5">
+    <div class="container">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 mb-4">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-0">
+                        <div class="bg-primary text-white p-4 text-center rounded-top">
+                            <i class="bi bi-person-circle display-4"></i>
+                            <h5 class="mt-2 mb-0">{{ user.get_full_name|default:user.username }}</h5>
+                        </div>
+                        <div class="list-group list-group-flush rounded-bottom">
+                            <a href="{% url 'marketplace:orders' %}" class="list-group-item list-group-item-action active fw-bold py-3"><i class="bi bi-box-seam me-2"></i> My Orders</a>
+                            <a href="{% url 'marketplace:catalog' %}" class="list-group-item list-group-item-action py-3"><i class="bi bi-shop me-2"></i> Marketplace Catalog</a>
+                            <a href="{% url 'agrolease:logout' %}" class="list-group-item list-group-item-action text-danger py-3"><i class="bi bi-box-arrow-right me-2"></i> Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="col-md-9">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="mb-0 fw-bold">My Orders</h2>
+                    <a href="{% url 'marketplace:catalog' %}" class="btn btn-outline-primary"><i class="bi bi-shop"></i> Continue Shopping</a>
+                </div>
+                
+                {% if orders %}
+                    {% for order in orders %}
+                    <div class="card shadow-sm border-0 mb-4 overflow-hidden">
+                        <div class="card-header bg-white border-bottom p-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+                            <div class="d-flex gap-4">
+                                <div>
+                                    <small class="text-muted d-block text-uppercase">Order Placed</small>
+                                    <span class="fw-bold">{{ order.created_at|date:"d M Y" }}</span>
+                                </div>
+                                <div>
+                                    <small class="text-muted d-block text-uppercase">Total</small>
+                                    <span class="fw-bold">₹{{ order.grand_total|floatformat:2 }}</span>
+                                </div>
+                                <div>
+                                    <small class="text-muted d-block text-uppercase">Ship To</small>
+                                    <span class="fw-bold text-primary">{{ order.customer_name }}</span>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted d-block text-uppercase">Order # {{ order.order_number }}</small>
+                                <a href="{% url 'marketplace:order_detail' order.pk %}" class="text-primary text-decoration-none fw-bold">View Order Details</a>
+                            </div>
+                        </div>
+                        
+                        <div class="card-body p-4">
+                            <div class="mb-4">
+                                <h5 class="fw-bold mb-1">
+                                    {% if order.status == 'DELIVERED' %}
+                                        <i class="bi bi-check-circle-fill text-success"></i> Delivered
+                                    {% elif order.status == 'CANCELLED' %}
+                                        <i class="bi bi-x-circle-fill text-danger"></i> Cancelled
+                                    {% else %}
+                                        <i class="bi bi-truck text-primary"></i> Arriving Soon
+                                    {% endif %}
+                                </h5>
+                                <p class="text-muted small">Status: {{ order.get_status_display }}</p>
+                            </div>
+                            
+                            <div class="row">
+                                {% for item in order.items.all %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="d-flex gap-3">
+                                        {% if item.product and item.product.image %}
+                                        <img src="{{ item.product.image.url }}" alt="{{ item.product_name }}" class="rounded border" style="width: 80px; height: 80px; object-fit: contain; padding: 5px; background: white;">
+                                        {% else %}
+                                        <div class="bg-light rounded border d-flex align-items-center justify-content-center text-muted" style="width: 80px; height: 80px;">
+                                            <i class="bi bi-image"></i>
+                                        </div>
+                                        {% endif %}
+                                        <div>
+                                            <h6 class="mb-1 fw-bold">{{ item.product_name }}</h6>
+                                            <div class="text-muted small mb-1">Qty: {{ item.quantity }} x ₹{{ item.unit_price|floatformat:2 }}</div>
+                                            {% if item.product %}
+                                            <a href="{{ item.product.get_absolute_url }}" class="btn btn-sm btn-outline-secondary mt-1">Buy it again</a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body text-center py-5">
+                            <i class="bi bi-box-seam text-muted" style="font-size: 4rem;"></i>
+                            <h3 class="mt-3">No orders yet</h3>
+                            <p class="text-muted mb-4">You haven't placed any orders on the AgriCulture marketplace.</p>
+                            <a href="{% url 'marketplace:catalog' %}" class="btn btn-primary btn-lg">Start Shopping</a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

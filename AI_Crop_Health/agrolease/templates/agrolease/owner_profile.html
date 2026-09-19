@@ -1,0 +1,26 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Owner Profile - AgriCulture{% endblock %}
+{% block body_class %}agrolease-owner-profile-page{% endblock %}
+
+{% block content %}
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Owner Profile</h1>
+    <p>View your AgroLease account information</p>
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="{% url 'index' %}">Home</a></li><li><a href="{% url 'agrolease:owner_dashboard' %}">Owner Dashboard</a></li><li class="current" aria-current="page">Profile</li></ol></nav>
+  </div>
+</div>
+<section class="agrolease-dashboard-section">
+  <div class="container">
+    {% with owner_nav_page='profile' %}{% include 'agrolease/owner_nav.html' %}{% endwith %}
+    <div class="agrolease-profile-page-card">
+      <div class="agrolease-profile-page-header"><div class="agrolease-profile-page-avatar">{{ request.user.first_name|default:request.user.username|first|upper }}</div><div><p class="agrolease-eyebrow">Account profile</p><h2>{{ request.user.get_full_name|default:request.user.username }}</h2><p>Land owner account</p></div><span class="agrolease-profile-badge"><i class="bi bi-patch-check-fill" aria-hidden="true"></i> {% if profile.is_verified %}Verified owner{% else %}Verification pending{% endif %}</span></div>
+      <div class="agrolease-profile-details"><div><span>Full name</span><strong>{{ request.user.get_full_name|default:"Not added" }}</strong></div><div><span>Phone number</span><strong>{{ profile.phone_number|default:"Not added" }}</strong></div><div><span>Email address</span><strong>{{ request.user.email|default:"Not added" }}</strong></div><div><span>Member since</span><strong>{{ request.user.date_joined|date:"d M Y" }}</strong></div></div>
+      <div class="agrolease-verification-checklist"><div><span>Verification documents</span><strong>{% if profile.government_id_document and profile.ownership_proof and profile.address_proof %}Submitted for Admin review{% else %}Documents incomplete{% endif %}</strong></div><div><span>Government ID</span><strong>{{ profile.government_id_type|default:"Not submitted"|title }}</strong></div><div><span>Owner selfie</span><strong>{% if profile.selfie_photo %}Submitted{% else %}Optional{% endif %}</strong></div></div>
+      <div class="agrolease-profile-note"><i class="bi bi-shield-check" aria-hidden="true"></i><p>Your profile is connected to your AgroLease owner workspace. Contact support if you need to update your account details.</p></div>
+    </div>
+  </div>
+</section>
+{% endblock %}
