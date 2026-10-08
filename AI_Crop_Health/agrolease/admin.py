@@ -1,6 +1,9 @@
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
+from django.http import FileResponse, Http404
+from django.urls import path, reverse
 from django.utils import timezone
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from .models import AgroProfile, Land, LeaseMessage, LeaseRequest, LeaseAgreement
 from core.admin import AuditModelAdminMixin
 from core.services import AuditService
@@ -45,11 +48,51 @@ class AgroProfileAdmin(ExportCsvMixin, AuditModelAdminMixin, admin.ModelAdmin):
 		}),
 		('Verification documents', {
 			'fields': ('required_documents_display', 'document_links',
-			           'government_id_type', 'government_id_document',
-			           'ownership_proof', 'address_proof', 'selfie_photo'),
+			           'government_id_type'),
 		}),
 		('Verification audit', {'fields': ('verification_submitted_at', 'verified_at', 'verified_by')}),
 	)
+
+	def get_urls(self):
+		urls = super().get_urls()
+		custom_urls = [
+			path(
+				'<int:object_id>/documents/<str:field_name>/',
+				self.admin_site.admin_view(self.download_verification_document),
+				name='agrolease_agroprofile_document',
+			),
+		]
+		return custom_urls + urls
+
+	def download_verification_document(self, request, object_id, field_name):
+		profile = self.get_object(request, object_id)
+		if profile is None:
+			raise Http404
+		if not self.has_view_or_change_permission(request, profile):
+			raise PermissionDenied
+
+		private_fields = {
+			'government_id_document',
+			'ownership_proof',
+			'address_proof',
+			'selfie_photo',
+		}
+		if field_name not in private_fields:
+			raise Http404
+		document = getattr(profile, field_name)
+		if not document:
+			raise Http404
+
+		filename = document.name.rsplit('/', 1)[-1]
+		response = FileResponse(
+			document.open('rb'),
+			as_attachment=True,
+			filename=filename,
+			content_type='application/octet-stream',
+		)
+		response['Cache-Control'] = 'private, no-store'
+		response['X-Content-Type-Options'] = 'nosniff'
+		return response
 
 	@admin.display(description='Documents')
 	def document_status(self, obj):
@@ -73,10 +116,14 @@ class AgroProfileAdmin(ExportCsvMixin, AuditModelAdminMixin, admin.ModelAdmin):
 		for label, field_name in obj.required_documents():
 			document = getattr(obj, field_name, None)
 			if document:
-				links.append(f'<a href="{document.url}" target="_blank" rel="noopener">{label}</a>')
+				url = reverse(
+					'admin:agrolease_agroprofile_document',
+					args=(obj.pk, field_name),
+				)
+				links.append(format_html('<a href="{}">{}</a>', url, label))
 			else:
-				links.append(f'<span style="color:#b00">{label} (missing)</span>')
-		return format_html(' &nbsp;|&nbsp; '.join(links))
+				links.append(format_html('<span style="color:#b00">{} (missing)</span>', label))
+		return format_html_join(' &nbsp;|&nbsp; ', '{}', ((link,) for link in links))
 
 	@admin.action(description='Approve verification (owners and farmers)')
 	def verify_profiles(self, request, queryset):

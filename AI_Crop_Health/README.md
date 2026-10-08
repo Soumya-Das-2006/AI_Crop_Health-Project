@@ -241,14 +241,18 @@ the currently deployed `.h5`.
 
 ## Deployment notes
 
+- For the selected 8 GiB EC2 setup, follow the step-by-step
+  [AWS deployment guide](./deploy/DEPLOY-AWS-EC2.md). A separate
+  [2 GiB hosted-AI-only option](./deploy/DEPLOY.md) is available if you want a
+  smaller instance and do not need the offline TensorFlow model.
 - `DJANGO_DEBUG=False` turns on SSL redirect, secure cookies, HSTS and
-  nosniff. Set real hosts in `ALLOWED_HOSTS` in `AI_Crop_Health/settings.py`.
-- **SQLite is the current database and will not survive concurrent sensor
-  writes.** Switch to PostgreSQL (there is a commented block in `settings.py`
-  and `DB_*` variables in `.env.example`) before connecting real field hardware.
+  nosniff. Set `DJANGO_ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` in `.env`.
+- SQLite is for local development. Production startup requires PostgreSQL
+  because concurrent sensor writes are unsafe on SQLite.
 - Run `python manage.py collectstatic` and serve `STATIC_ROOT` from the web
-  server, and serve `MEDIA_ROOT` too — Django only serves media while `DEBUG`
-  is on.
+  server. Serve public `MEDIA_ROOT` uploads separately, but keep
+  `media/verification/` private; the EC2 Nginx and Django admin configuration
+  only permit staff-authorised downloads for those files.
 - Logs are written to `logs/django.log` as UTF-8.
 - `python manage.py compute_daily_metrics` aggregates IoT metrics; schedule it
   daily. `python manage.py seed_demo_data` creates demo fields and readings.

@@ -25,8 +25,8 @@ Follow the steps in order. Each one is self-contained; don't skip ahead.
    resources are not charged; a small temporary hold may appear and reverses.
 
 Signups are sometimes rejected for no clear reason. If that happens, try a
-different card or wait a day. If it keeps failing, use AWS Lightsail instead
-(`DEPLOY.md`) — don't lose days to this.
+different card or wait a day. If it keeps failing, use the AWS EC2 deployment
+guide (`DEPLOY-AWS-EC2.md`) instead — don't lose days to this.
 
 ---
 
@@ -367,4 +367,4 @@ backup.
 | `Refusing to start in production` | Read it — it names the exact problem |
 | Ask AI "not set up on this server" | `GROQ_API_KEY` missing, or no restart after editing `.env` |
 | Site works, images 404 | `MEDIA_ROOT` and the nginx `/media/` alias disagree |
-| "Out of host capacity" | Oracle is full — different AD, retry later, or use Lightsail |
+| "Out of host capacity" | Oracle is full — different AD, retry later, or use AWS EC2 |
