@@ -1,0 +1,49 @@
+# systemd unit for the Django app.
+#
+# Install:
+#   sudo cp deploy/gunicorn.service /etc/systemd/system/crophealth.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now crophealth
+#
+# Logs:  sudo journalctl -u crophealth -f
+
+[Unit]
+Description=AI Crop Health (gunicorn)
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/crophealth/AI_Crop_Health
+
+# EnvironmentFile keeps secrets out of this unit and out of git. Same .env the
+# app reads locally, so there is one format to learn.
+EnvironmentFile=/srv/crophealth/AI_Crop_Health/.env
+
+# A unix socket, not a TCP port: nginx is the only thing that should be able to
+# reach gunicorn, and a socket cannot be hit from outside the box by accident.
+#
+# --workers 1 on a 1-2GB instance. Each worker is a full copy of the app; two
+# of them on a small instance is how you meet the OOM killer. Raise it only
+# after watching memory under real traffic.
+#
+# --timeout 120 because a diagnosis request waits on crop.health and a chatbot
+# request waits on Groq; the default 30s would kill slow-but-healthy requests.
+ExecStart=/srv/crophealth/.venv/bin/gunicorn \
+    AI_Crop_Health.wsgi:application \
+    --bind unix:/run/crophealth/gunicorn.sock \
+    --workers 1 \
+    --threads 4 \
+    --timeout 120 \
+    --access-logfile - \
+    --error-logfile -
+
+RuntimeDirectory=crophealth
+Restart=always
+RestartSec=5
+
+# The app should never need to write outside these.
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

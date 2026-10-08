@@ -9,7 +9,6 @@
   <div class="container position-relative">
     <h1>AI Agricultural Assistant</h1>
     <p>Step-by-step guidance for your farming questions</p>
-    <p class="small">खेती के सवालों के लिए कदम-दर-कदम मार्गदर्शन | ধাপে ধাপে কৃষি নির্দেশনা</p>
     <nav class="breadcrumbs">
       <ol>
         <li><a href="{% url 'index' %}">Home</a></li>
@@ -32,13 +31,22 @@
               </h4>
               <small id="stateIndicator" class="text-white-50">Ready to help</small>
             </div>
-            <button id="resetBtn" class="btn btn-sm btn-outline-light" title="Start New Conversation">
-              <i class="bi bi-arrow-clockwise"></i> Reset
-            </button>
+            <div class="d-flex gap-2">
+              <button id="newChatBtn" class="btn btn-sm btn-light text-success" type="button">
+                <i class="bi bi-plus-lg"></i> New Chat
+              </button>
+              <button id="resetBtn" class="btn btn-sm btn-outline-light" type="button" title="Delete all conversations">
+                <i class="bi bi-trash"></i> Reset All
+              </button>
+            </div>
           </div>
           
           <div class="card-body p-0">
-            <div id="chatMessages" class="chat-messages p-4" style="height: 500px; overflow-y: auto; background-color: #f8f9fa;">
+            <!-- Not translated: AgriBot already replies in the farmer's own language,
+                 and these messages are the farmer's own words. Sending them to a
+                 public translation endpoint would leak them and re-translating an
+                 already-Bengali answer would corrupt it. -->
+            <div id="chatMessages" class="chat-messages p-4" data-no-translate="true" style="height: 500px; overflow-y: auto; background-color: #f8f9fa;">
               <div class="message bot-message mb-3">
                 <div class="d-flex align-items-start">
                   <div class="avatar bg-success text-white me-2">
@@ -102,6 +110,13 @@
       </div>
 
       <div class="col-lg-4">
+        <div class="card shadow-sm mb-4 border-success">
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="bi bi-chat-square-text"></i> Your Conversations</h5>
+          </div>
+          <div id="chatConversationList" class="list-group list-group-flush" aria-live="polite"></div>
+        </div>
+
         <div class="card shadow-sm mb-4 border-success">
           <div class="card-header bg-success text-white">
             <h5 class="mb-0"><i class="bi bi-gear"></i> Current State</h5>
@@ -177,8 +192,26 @@
 </section>
 
 <style>
+.chatbot-page .card-header h4,
+.chatbot-page .card-header h5 {
+  color: #fff;
+}
 .chat-messages {
   scroll-behavior: smooth;
+}
+#chatConversationList {
+  max-height: 280px;
+  overflow-y: auto;
+}
+#chatConversationList .list-group-item {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#chatConversationList .list-group-item[aria-current="true"] {
+  color: #116530;
+  background: #eaf5ed;
+  font-weight: 700;
 }
 .message {
   margin-bottom: 1rem;
@@ -238,6 +271,16 @@
 .chat-messages::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+  /* AgriBot answers are markdown rendered server-side; keep them compact so a
+     structured answer still fits a phone screen. */
+  .agribot-answer h3 { font-size: 1.02rem; font-weight: 700; margin: .8rem 0 .3rem; }
+  .agribot-answer h4 { font-size: .95rem; font-weight: 700; margin: .7rem 0 .25rem; }
+  .agribot-answer > *:first-child { margin-top: 0; }
+  .agribot-answer > *:last-child { margin-bottom: 0; }
+  .agribot-answer p { margin-bottom: .5rem; }
+  .agribot-answer ul, .agribot-answer ol { margin-bottom: .5rem; padding-left: 1.2rem; }
+  .agribot-answer li { margin-bottom: .2rem; }
 </style>
 
 <script>
@@ -248,6 +291,10 @@ document.addEventListener('DOMContentLoaded', function() {
   const typingIndicator = document.getElementById('typingIndicator');
   const sendBtn = document.getElementById('sendBtn');
   const resetBtn = document.getElementById('resetBtn');
+  const newChatBtn = document.getElementById('newChatBtn');
+  const conversationList = document.getElementById('chatConversationList');
+  const initialMessageMarkup = chatMessages.innerHTML;
+  let activeConversationId = null;
   
   const stateCrop = document.getElementById('stateCrop');
   const stateIntent = document.getElementById('stateIntent');
@@ -258,11 +305,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-  resetBtn.addEventListener('click', function() {
-    if (confirm('Start a new conversation? Current chat will be cleared.')) {
-      sendMessage('reset');
-    }
-  });
+  newChatBtn.addEventListener('click', createConversation);
+  resetBtn.addEventListener('click', resetAllConversations);
 
   chatForm.addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -285,20 +329,29 @@ document.addEventListener('DOMContentLoaded', function() {
           'Content-Type': 'application/json',
           'X-CSRFToken': csrfToken
         },
-        body: JSON.stringify({ message: userMessage })
+        body: JSON.stringify({
+          message: userMessage,
+          conversation_id: activeConversationId
+        })
       });
 
       const data = await response.json();
       typingIndicator.style.display = 'none';
-      
-      if (data.response) {
-        addMessage(data.response, 'bot', data.status);
-        if (data.state) {
-          updateStateDisplay(data);
-        }
-      } else if (data.error) {
-        addMessage('Sorry, an error occurred: ' + data.error, 'bot', 'error');
+      if (data.session_id) {
+        activeConversationId = data.session_id;
+        updateConversationUrl(activeConversationId);
       }
+      
+      if (data.response_html || data.response) {
+        // response_html is markdown already rendered and sanitised on the
+        // server (detection/answer_format.py), so headings and bullets survive.
+        addMessage(data.response_html || data.response, 'bot', data.status,
+                   !!data.response_html);
+      } else if (data.error) {
+        addMessage(data.response || ('Sorry, an error occurred: ' + data.error),
+                   'bot', 'error');
+      }
+      await refreshConversationList();
     } catch (error) {
       console.error('Error:', error);
       typingIndicator.style.display = 'none';
@@ -310,7 +363,125 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  function addMessage(text, sender, status = '') {
+  async function loadConversation(conversationId = null) {
+    const url = new URL('{% url "detection:chatbot_history" %}', window.location.origin);
+    if (conversationId) url.searchParams.set('conversation_id', conversationId);
+    const response = await fetch(url);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Unable to load this conversation.');
+
+    activeConversationId = data.session_id;
+    updateConversationUrl(activeConversationId);
+    chatMessages.innerHTML = initialMessageMarkup;
+    if (data.messages.length) {
+      chatMessages.innerHTML = '';
+      data.messages.forEach(function (message) {
+        const isBot = message.role === 'assistant';
+        addMessage(isBot && message.content_html ? message.content_html : message.content,
+                   isBot ? 'bot' : 'user', '', isBot && !!message.content_html);
+      });
+    }
+    renderConversationList(data.conversations, activeConversationId);
+  }
+
+  async function refreshConversationList() {
+    const url = new URL('{% url "detection:chatbot_history" %}', window.location.origin);
+    if (activeConversationId) url.searchParams.set('conversation_id', activeConversationId);
+    const response = await fetch(url);
+    if (!response.ok) return;
+    const data = await response.json();
+    renderConversationList(data.conversations, activeConversationId);
+  }
+
+  function renderConversationList(conversations, selectedId) {
+    conversationList.innerHTML = '';
+    conversations.forEach(function (conversation) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'list-group-item list-group-item-action text-start';
+      button.textContent = conversation.title;
+      button.title = conversation.title;
+      button.setAttribute('aria-current',
+        String(conversation.id) === String(selectedId) ? 'true' : 'false');
+      button.addEventListener('click', function () {
+        loadConversation(conversation.id).catch(showChatError);
+      });
+      conversationList.appendChild(button);
+    });
+  }
+
+  async function createConversation() {
+    newChatBtn.disabled = true;
+    try {
+      const response = await fetch('{% url "detection:chatbot_new" %}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not start a new conversation.');
+      activeConversationId = data.session_id;
+      updateConversationUrl(activeConversationId);
+      chatMessages.innerHTML = initialMessageMarkup;
+      await refreshConversationList();
+      userMessageInput.focus();
+    } catch (error) {
+      showChatError(error);
+    } finally {
+      newChatBtn.disabled = false;
+    }
+  }
+
+  async function resetAllConversations() {
+    if (!confirm('Delete all your AgriBot conversations? This cannot be undone.')) return;
+    resetBtn.disabled = true;
+    try {
+      const response = await fetch('{% url "detection:chatbot_reset" %}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not delete conversations.');
+      activeConversationId = data.session_id;
+      updateConversationUrl(activeConversationId);
+      chatMessages.innerHTML = initialMessageMarkup;
+      await refreshConversationList();
+      userMessageInput.focus();
+    } catch (error) {
+      showChatError(error);
+    } finally {
+      resetBtn.disabled = false;
+    }
+  }
+
+  function updateConversationUrl(conversationId) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('conversation_id', conversationId);
+    window.history.replaceState({}, '', url);
+  }
+
+  function showChatError(error) {
+    console.error(error);
+    addMessage(error.message || 'Could not complete that chat action. Please try again.',
+               'bot', 'error');
+  }
+
+  const initialConversationId = new URLSearchParams(window.location.search)
+    .get('conversation_id');
+  userMessageInput.disabled = true;
+  loadConversation(initialConversationId)
+    .catch(function (error) {
+      if (initialConversationId) {
+        loadConversation().catch(showChatError);
+      } else {
+        showChatError(error);
+      }
+    })
+    .finally(function () {
+      userMessageInput.disabled = false;
+      userMessageInput.focus();
+    });
+
+  function addMessage(text, sender, status = '', isHtml = false) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}-message mb-3`;
     const now = new Date().toLocaleTimeString('en-US', { 
@@ -345,7 +516,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="message-content">
             <div class="message-bubble bg-white p-3 rounded shadow-sm">
               <strong>AgriBot:</strong>${statusBadge}
-              <div class="mt-2">${formatBotMessage(text)}</div>
+              <div class="mt-2 agribot-answer">${isHtml ? text : formatBotMessage(text)}</div>
             </div>
             <small class="text-muted ms-2">${now}</small>
           </div>

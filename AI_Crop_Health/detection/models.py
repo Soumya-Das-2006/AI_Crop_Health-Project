@@ -1,10 +1,5 @@
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
-from django.utils import timezone
-from django.db.models import Q  # ADD THIS IMPORT
-from django.db import models
-
-from django.db import models
+from django.db.models import Q
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from django.contrib.auth.models import User
@@ -24,6 +19,16 @@ class DetectionHistory(models.Model):
 
 class DiagnosisLog(models.Model):
     timestamp = models.DateTimeField(default=timezone.now, db_index=True)
+    # Set when the scan was made by a signed-in user. Stays NULL for anonymous
+    # scans, which remain supported, so this is nullable rather than required.
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='diagnosis_logs',
+        db_index=True,
+    )
     session_id = models.CharField(max_length=100, null=True, blank=True)
     user_ip = models.GenericIPAddressField(null=True, blank=True)
 
@@ -54,14 +59,36 @@ class DiagnosisLog(models.Model):
     )
     entropy_score = models.FloatField(null=True, blank=True)
 
+    # Vocabulary matches ml_engine/plant_disease/abstention.py, which is what
+    # every provider actually emits. The old highly_reliable /
+    # moderate_confidence choices were never produced by any code path, so
+    # historic rows already hold the values below.
     diagnosis_status = models.CharField(
         max_length=30,
         choices=[
-            ('highly_reliable', 'Highly Reliable (≥98%)'),
-            ('moderate_confidence', 'Moderate Confidence (95–97%)'),
-            ('unreliable', 'Unreliable (<95%)'),
+            ('reliable', 'Reliable - treatment shown'),
+            ('caution', 'Needs confirmation - treatment withheld'),
+            ('unreliable', 'Not confident - treatment withheld'),
+            ('not_a_plant', 'No plant detected'),
         ]
     )
+
+    # Which tier answered. This is the column that makes the saved photos
+    # usable as training data later: a crop.health answer and an offline
+    # 38-class answer are not the same kind of label, and a retrain has to be
+    # able to tell them apart.
+    provider = models.CharField(
+        max_length=30,
+        default='local',
+        db_index=True,
+        choices=[
+            ('crop.health', 'crop.health API'),
+            ('local', 'Bundled PlantVillage model'),
+        ]
+    )
+    # Populated only when the primary tier was skipped, so a spike in
+    # api_quota_exhausted or api_auth_failed is visible rather than silent.
+    fallback_reason = models.CharField(max_length=40, null=True, blank=True)
 
     used_gemini_validation = models.BooleanField(default=False)
     gemini_confidence = models.FloatField(null=True, blank=True)
@@ -784,3 +811,342 @@ class APIAccessLog(models.Model):
     def __str__(self):
         status = "✓ Valid" if self.is_valid_key else "✗ Invalid"
         return f"{status} API call from {self.user_ip} @ {self.timestamp}"
+
+# ======================================================
+# ASK AI - follow-up conversation about a diagnosed image
+# ======================================================
+
+class DiagnosisConversation(models.Model):
+    """
+    One Ask AI thread, always anchored to an identified image.
+
+    Anchoring to a log rather than floating free is deliberate: every answer is
+    about a specific photo whose subject and confidence are already known, so
+    the model is never guessing at context it was not given. It also means the
+    thread inherits that log's reliability verdict, which is what decides
+    whether treatment advice may be named.
+
+    A thread hangs off exactly one of two subjects - a plant diagnosis or an
+    insect identification. Two nullable foreign keys rather than a generic
+    relation: there are only ever two kinds, the admin and the queries stay
+    readable, and a DB-level constraint can state the "exactly one" rule
+    outright instead of trusting every call site to remember it.
+    """
+
+    diagnosis_log = models.ForeignKey(
+        DiagnosisLog,
+        on_delete=models.CASCADE,
+        related_name='conversations',
+        null=True,
+        blank=True,
+    )
+    insect_log = models.ForeignKey(
+        'InsectIdentificationLog',
+        on_delete=models.CASCADE,
+        related_name='conversations',
+        null=True,
+        blank=True,
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='diagnosis_conversations'
+    )
+    session_id = models.CharField(max_length=100, null=True, blank=True, db_index=True)
+
+    language = models.CharField(max_length=10, default='en')
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['diagnosis_log', '-created_at']),
+            models.Index(fields=['insect_log', '-created_at']),
+        ]
+        constraints = [
+            # Exactly one subject. A thread with neither has no context to
+            # answer from; a thread with both would silently answer about
+            # whichever the code happened to read first.
+            models.CheckConstraint(
+                check=(
+                    models.Q(diagnosis_log__isnull=False, insect_log__isnull=True)
+                    | models.Q(diagnosis_log__isnull=True, insect_log__isnull=False)
+                ),
+                name='conversation_has_exactly_one_subject',
+            ),
+        ]
+
+    SUBJECT_PLANT = 'plant'
+    SUBJECT_INSECT = 'insect'
+
+    def __str__(self):
+        return f"Ask AI #{self.pk} on {self.kind} #{self.subject_id}"
+
+    @property
+    def kind(self):
+        """Which sort of subject this thread is about."""
+        return self.SUBJECT_INSECT if self.insect_log_id else self.SUBJECT_PLANT
+
+    @property
+    def subject(self):
+        """The log this thread is about, whichever kind it is."""
+        return self.insect_log if self.insect_log_id else self.diagnosis_log
+
+    @property
+    def subject_id(self):
+        return self.insect_log_id or self.diagnosis_log_id
+
+    @property
+    def message_count(self):
+        return self.messages.count()
+
+
+class DiagnosisMessage(models.Model):
+    """
+    A single turn in an Ask AI thread.
+
+    Stores what was asked, what was answered, and - importantly for audit -
+    whether the safety gate suppressed chemical recommendations in that answer.
+    A regulator or an agronomist reviewing this table can reconstruct exactly
+    what a farmer was told and why.
+    """
+
+    ROLE_USER = 'user'
+    ROLE_ASSISTANT = 'assistant'
+
+    conversation = models.ForeignKey(
+        DiagnosisConversation,
+        on_delete=models.CASCADE,
+        related_name='messages'
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=[(ROLE_USER, 'Farmer'), (ROLE_ASSISTANT, 'AI')],
+        db_index=True
+    )
+    content = models.TextField()
+
+    # Which suggestion chip produced this, blank when the farmer typed freely.
+    preset = models.CharField(max_length=50, blank=True, default='', db_index=True)
+
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    # Observability. A rising error rate or latency here is the first sign the
+    # upstream model has changed behaviour.
+    model_name = models.CharField(max_length=60, blank=True, default='')
+    latency_ms = models.IntegerField(null=True, blank=True)
+    error = models.TextField(null=True, blank=True)
+
+    # True when the answer was produced under a withheld-treatment diagnosis,
+    # so the model was instructed not to name any chemical. Without this flag
+    # the chat would be an unaudited way around the diagnosis confidence gate.
+    treatment_gated = models.BooleanField(default=False)
+
+    # Review workflow, mirroring DiagnosisLog's.
+    flagged_by_admin = models.BooleanField(default=False)
+    admin_note = models.TextField(blank=True, default='')
+
+    class Meta:
+        # Tie-break on id: a question and its answer are often written in the
+        # same millisecond, and ordering on created_at alone let the answer
+        # sort above the question, scrambling the displayed thread.
+        ordering = ['created_at', 'id']
+        indexes = [
+            models.Index(fields=['conversation', 'created_at']),
+            models.Index(fields=['-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.get_role_display()}: {self.content[:60]}"
+
+
+# ======================================================
+# INSECT IDENTIFICATION
+# ======================================================
+
+class InsectIdentificationLog(models.Model):
+    """
+    Audit row for one insect photo, mirroring DiagnosisLog.
+
+    Separate from DiagnosisLog on purpose: a disease row carries a crop and a
+    treatment decision, an insect row carries a taxon and explicitly carries NO
+    treatment decision. Folding them together would invite code that treats an
+    identified insect as a pest to be sprayed, which is the mistake this
+    feature is built to avoid.
+    """
+
+    timestamp = models.DateTimeField(default=timezone.now, db_index=True)
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='insect_identifications'
+    )
+    session_id = models.CharField(max_length=100, null=True, blank=True)
+    user_ip = models.GenericIPAddressField(null=True, blank=True)
+
+    uploaded_image = models.ImageField(upload_to='insects/%Y/%m/%d/', null=True, blank=True)
+    image_resolution = models.CharField(max_length=20, blank=True, default='')
+    image_size_kb = models.IntegerField(null=True, blank=True)
+
+    # Top result
+    common_name = models.CharField(max_length=200, blank=True, default='')
+    scientific_name = models.CharField(max_length=200, blank=True, default='')
+    taxon_id = models.CharField(max_length=100, blank=True, default='')
+    confidence = models.FloatField(default=0.0)
+
+    # Full ranked list as returned, so a later review can see what else was
+    # considered rather than only the winner.
+    top_predictions = models.JSONField(null=True, blank=True)
+
+    margin = models.FloatField(null=True, blank=True)
+    entropy_score = models.FloatField(null=True, blank=True)
+
+    identification_status = models.CharField(
+        max_length=30,
+        db_index=True,
+        choices=[
+            ('reliable', 'Confident'),
+            ('caution', 'Needs confirmation'),
+            ('unreliable', 'Not confident'),
+            ('not_an_insect', 'No insect detected'),
+        ]
+    )
+
+    # Always 'unknown' today. insect.id reports danger-to-humans for only ~3.5%
+    # of taxa, so the app does not claim to know whether an insect is a pest.
+    # The column exists so that a future expert-curated pest list has somewhere
+    # to land without a migration on a table that already has rows.
+    pest_status = models.CharField(
+        max_length=20,
+        default='unknown',
+        choices=[
+            ('unknown', 'Unknown - not assessed'),
+            ('pest', 'Known pest'),
+            ('beneficial', 'Beneficial insect'),
+            ('neutral', 'Neutral'),
+        ]
+    )
+
+    provider = models.CharField(max_length=30, default='insect.id')
+    model_version = models.CharField(max_length=60, blank=True, default='')
+
+    # Feedback loop, same shape as FarmerFeedback on the disease side.
+    farmer_confirmed = models.BooleanField(null=True, blank=True)
+    correct_identification = models.CharField(max_length=200, blank=True, default='')
+    admin_reviewed = models.BooleanField(default=False)
+    admin_notes = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['-timestamp']),
+            models.Index(fields=['identification_status', '-timestamp']),
+        ]
+
+    def __str__(self):
+        label = self.common_name or self.scientific_name or 'Unidentified'
+        return "{0} ({1:.0f}%) @ {2}".format(label, self.confidence, self.timestamp)
+
+
+# ======================================================
+# AGRICULTURE CHATBOT
+# ======================================================
+
+class ChatSession(models.Model):
+    """
+    One chatbot conversation.
+
+    Stored in the database rather than only in the Django session, because a
+    session cookie dies with the browser and takes the thread with it. These
+    rows are also the only record of what farmers actually ask, which is worth
+    more than the answers: it shows which crops, seasons and problems the
+    product should cover next.
+    """
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='chat_sessions'
+    )
+    session_key = models.CharField(max_length=100, db_index=True)
+    user_ip = models.GenericIPAddressField(null=True, blank=True)
+
+    # Detected from the farmer's own writing, not chosen from a dropdown.
+    language = models.CharField(max_length=20, default='unknown', db_index=True)
+
+    started_at = models.DateTimeField(default=timezone.now, db_index=True)
+    last_active_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-last_active_at']
+        indexes = [
+            models.Index(fields=['-last_active_at']),
+            models.Index(fields=['session_key', '-started_at']),
+        ]
+
+    def __str__(self):
+        who = self.user.username if self.user_id else f"anon {self.session_key[:8]}"
+        return f"Chat #{self.pk} ({who}, {self.language})"
+
+    @property
+    def message_count(self):
+        return self.messages.count()
+
+
+class ChatMessage(models.Model):
+    """
+    One turn in a chatbot conversation.
+
+    Records which provider answered and how long it took, so a silent
+    degradation - the primary model failing and the fallback quietly carrying
+    every request - is visible in the admin instead of invisible.
+    """
+
+    ROLE_USER = 'user'
+    ROLE_ASSISTANT = 'assistant'
+
+    session = models.ForeignKey(
+        ChatSession,
+        on_delete=models.CASCADE,
+        related_name='messages'
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=[(ROLE_USER, 'Farmer'), (ROLE_ASSISTANT, 'AgriBot')],
+        db_index=True,
+    )
+    content = models.TextField()
+    language = models.CharField(max_length=20, blank=True, default='')
+
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    provider = models.CharField(max_length=20, blank=True, default='', db_index=True)
+    model_name = models.CharField(max_length=60, blank=True, default='')
+    latency_ms = models.IntegerField(null=True, blank=True)
+    error = models.TextField(null=True, blank=True)
+    # True when the primary provider failed and the backup answered instead.
+    used_fallback = models.BooleanField(default=False)
+
+    flagged_by_admin = models.BooleanField(default=False)
+    admin_note = models.TextField(blank=True, default='')
+
+    class Meta:
+        # Tie-break on id: a question and its answer are often written in the
+        # same millisecond, and created_at alone lets them sort out of order.
+        ordering = ['created_at', 'id']
+        indexes = [
+            models.Index(fields=['session', 'created_at']),
+            models.Index(fields=['-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.get_role_display()}: {self.content[:60]}"

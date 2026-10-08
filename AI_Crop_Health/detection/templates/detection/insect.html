@@ -1,0 +1,319 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Insect Identification - AgriCulture{% endblock %}
+{% block body_class %}insect-page{% endblock %}
+
+{% block content %}
+
+<div class="page-title dark-background"
+     style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Insect Identification</h1>
+    <p>Photograph an insect to find out what it is.</p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-8">
+
+        <div class="card shadow-sm mb-4">
+          <div class="card-body">
+            <h5 class="fw-bold mb-3"><i class="bi bi-bug"></i> Upload an insect photo</h5>
+
+            {% if error %}
+              <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> {{ error }}
+              </div>
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data">
+              {% csrf_token %}
+              <div class="mb-3">
+                {{ form.image }}
+                <div class="form-text">{{ form.image.help_text }}</div>
+              </div>
+              <button type="submit" class="btn btn-success px-4">
+                <i class="bi bi-search"></i> Identify
+              </button>
+            </form>
+
+            <p class="text-muted small mt-3 mb-0">
+              Get close, fill the frame with one insect, and shoot in daylight.
+              Blurry or distant photos cannot be identified reliably.
+            </p>
+          </div>
+        </div>
+
+        {% if result %}
+        <div class="card shadow-sm">
+          <div class="card-body">
+
+            {% if result.image_url %}
+              <div class="text-center mb-4">
+                <img src="{{ result.image_url }}" alt="Uploaded insect photo"
+                     class="img-fluid rounded border shadow-sm"
+                     style="max-height: 320px;">
+              </div>
+            {% endif %}
+
+            <div class="text-center mb-4">
+              <span class="badge fs-6 px-4 py-2
+                {% if result.identification_status == 'reliable' %}bg-success
+                {% elif result.identification_status == 'caution' %}bg-warning text-dark
+                {% elif result.identification_status == 'not_an_insect' %}bg-secondary
+                {% else %}bg-danger{% endif %}">
+                {{ result.status_badge.label }}
+              </span>
+              <p class="text-muted small mt-2 mb-0">{{ result.status_message }}</p>
+            </div>
+
+            <!-- This notice is the point of the page. Identifying an insect is
+                 not the same as declaring it a pest, and a farmer who sprays a
+                 ladybird or a pollinator is worse off than one who sprayed
+                 nothing. -->
+            <div class="alert alert-info d-flex align-items-start">
+              <i class="bi bi-info-circle me-2 mt-1"></i>
+              <div>
+                <strong>This is identification, not a pest verdict.</strong>
+                Many insects in a field are helpful - they pollinate crops or eat
+                the pests. We do not tell you to spray. Confirm with your KVK or
+                agriculture officer before treating anything.
+              </div>
+            </div>
+
+            {% if result.top_predictions %}
+              <h5 class="fw-bold"><i class="bi bi-list-ol"></i> Best matches</h5>
+              <p class="text-muted small">
+                Ranked by likelihood. The correct answer is far more often in
+                this list than in the first line alone - compare all three
+                against the insect you are looking at.
+              </p>
+              <div class="list-group mb-4">
+                {% for candidate in result.top_predictions %}
+                  <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <div class="fw-bold">
+                          {% if forloop.first %}<span class="badge bg-success me-1">Top</span>{% endif %}
+                          {{ candidate.name }}
+                        </div>
+                        {% if candidate.scientific_name and candidate.scientific_name != candidate.name %}
+                          <em class="text-muted small">{{ candidate.scientific_name }}</em>
+                        {% endif %}
+                        {% if candidate.rank %}
+                          <span class="badge bg-light text-dark ms-1">{{ candidate.rank }}</span>
+                        {% endif %}
+                        {% if candidate.description %}
+                          <p class="small text-muted mt-2 mb-0">{{ candidate.description|truncatewords:45 }}</p>
+                        {% endif %}
+                      </div>
+                      <span class="badge bg-secondary rounded-pill ms-2">{{ candidate.confidence }}%</span>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            <div class="alert alert-light border">
+              <i class="bi bi-signpost-2"></i> {{ result.recommendation }}
+            </div>
+
+            <!-- ============ ASK AI ============ -->
+            <div class="border-top pt-4 mt-4" id="ask-ai" data-log-id="{{ result.log_id }}">
+              <h5 class="fw-bold mb-1">
+                <i class="bi bi-chat-dots"></i> Ask about this insect
+              </h5>
+              <p class="text-muted small">
+                Ask what problem it causes in your crop, whether it is harmful or
+                helpful, and what to do about it.
+                {% if result.identification_status != 'reliable' %}
+                  Because the identification is uncertain, no treatment will be named.
+                {% endif %}
+              </p>
+
+              <div id="ask-ai-thread" class="mb-3" data-no-translate="true"></div>
+
+              <div class="d-flex flex-wrap gap-2 mb-3" id="ask-ai-presets">
+                {% for preset_id, preset_label in ask_ai_presets %}
+                  <button type="button" class="btn btn-outline-secondary btn-sm ask-ai-preset"
+                          data-preset="{{ preset_id }}">{{ preset_label }}</button>
+                {% endfor %}
+              </div>
+
+              <div class="input-group">
+                <input type="text" id="ask-ai-input" class="form-control" maxlength="500"
+                       placeholder="Or type your own question about this insect...">
+                <button class="btn btn-success" type="button" id="ask-ai-send">
+                  <i class="bi bi-send"></i>
+                </button>
+              </div>
+              <div id="ask-ai-error" class="text-danger small mt-2 d-none"></div>
+            </div>
+
+          </div>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+/* Ask AI answers are markdown-rendered: keep headings and lists compact so a
+   structured answer still fits a phone screen without endless scrolling. */
+.ask-ai-bubble h3 { font-size: 1.05rem; font-weight: 700; margin: .9rem 0 .35rem; }
+.ask-ai-bubble h4 { font-size: .98rem; font-weight: 700; margin: .75rem 0 .3rem; }
+.ask-ai-bubble h5 { font-size: .92rem; font-weight: 600; margin: .6rem 0 .25rem; }
+.ask-ai-bubble > *:first-child { margin-top: 0; }
+.ask-ai-bubble > *:last-child { margin-bottom: 0; }
+.ask-ai-bubble p { margin-bottom: .5rem; }
+.ask-ai-bubble ul, .ask-ai-bubble ol { margin-bottom: .5rem; padding-left: 1.25rem; }
+.ask-ai-bubble li { margin-bottom: .25rem; }
+.ask-ai-bubble ul ul, .ask-ai-bubble ol ol { margin-top: .25rem; margin-bottom: .25rem; }
+.ask-ai-bubble table { width: 100%; font-size: .9rem; margin-bottom: .5rem; }
+.ask-ai-bubble th, .ask-ai-bubble td { border: 1px solid #dee2e6; padding: .3rem .5rem; }
+.ask-ai-bubble code { background: rgba(0,0,0,.05); padding: .1rem .3rem; border-radius: 3px; }
+</style>
+<script>
+// ===================== ASK AI =====================
+// Talks to detection:ask_ai_api. Every turn is persisted server-side, so a
+// reload replays the thread rather than losing it.
+(function () {
+  const root = document.getElementById('ask-ai');
+  if (!root) return;
+
+  const logId = root.dataset.logId;
+  const thread = document.getElementById('ask-ai-thread');
+  const input = document.getElementById('ask-ai-input');
+  const sendBtn = document.getElementById('ask-ai-send');
+  const errorBox = document.getElementById('ask-ai-error');
+  let busy = false;
+
+  function csrfToken() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function addBubble(role, text, gated, isHtml) {
+    const wrap = document.createElement('div');
+    wrap.className = 'mb-2 d-flex ' + (role === 'user' ? 'justify-content-end' : 'justify-content-start');
+    const bubble = document.createElement('div');
+    bubble.className = 'p-3 rounded-3 ask-ai-bubble ' +
+      (role === 'user' ? 'bg-success text-white' : 'bg-light border');
+    bubble.style.maxWidth = '90%';
+    // Answers arrive as HTML already sanitised server-side by
+    // detection/answer_format.py (bleach, no attributes, tiny tag allowlist).
+    // Everything else is escaped here.
+    if (isHtml) {
+      bubble.innerHTML = text;
+    } else {
+      bubble.style.whiteSpace = 'pre-wrap';
+      bubble.innerHTML = escapeHtml(text);
+    }
+    if (gated) {
+      const note = document.createElement('div');
+      note.className = 'small text-muted mt-2 border-top pt-1';
+      note.textContent = 'No treatment named: the identification is not confident enough, and spraying a misidentified insect can kill the predators protecting your crop. Confirm with your KVK officer.';
+      bubble.appendChild(note);
+    }
+    wrap.appendChild(bubble);
+    thread.appendChild(wrap);
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return bubble;
+  }
+
+  function showError(message) {
+    errorBox.textContent = message;
+    errorBox.classList.remove('d-none');
+  }
+
+  function setBusy(state) {
+    busy = state;
+    sendBtn.disabled = state;
+    input.disabled = state;
+    document.querySelectorAll('.ask-ai-preset').forEach(function (b) { b.disabled = state; });
+  }
+
+  function send(body, displayText) {
+    if (busy) return;
+    errorBox.classList.add('d-none');
+    setBusy(true);
+    addBubble('user', displayText);
+    const pending = addBubble('assistant', 'Thinking...');
+
+    fetch("{% url 'detection:ask_ai_api' %}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+      body: JSON.stringify(Object.assign({ insect_log_id: parseInt(logId, 10) }, body))
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (!res.ok) {
+          pending.remove();
+          showError(res.data.error || 'Something went wrong.');
+          return;
+        }
+        pending.style.whiteSpace = '';
+        pending.innerHTML = res.data.answer_html || escapeHtml(res.data.answer || '');
+        if (res.data.treatment_gated) {
+          const note = document.createElement('div');
+          note.className = 'small text-muted mt-2 border-top pt-1';
+          note.textContent = 'No treatment named: the identification is not confident enough, and spraying a misidentified insect can kill the predators protecting your crop. Confirm with your KVK officer.';
+          pending.appendChild(note);
+        }
+      })
+      .catch(function () {
+        pending.remove();
+        showError('Network error. Please try again.');
+      })
+      .finally(function () { setBusy(false); });
+  }
+
+  document.querySelectorAll('.ask-ai-preset').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      send({ preset: btn.dataset.preset }, btn.textContent.trim());
+    });
+  });
+
+  function sendTyped() {
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    send({ question: text }, text);
+  }
+
+  sendBtn.addEventListener('click', sendTyped);
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); sendTyped(); }
+  });
+
+  // Replay any earlier turns for this diagnosis.
+  fetch("{% url 'detection:ask_ai_insect_history' 0 %}".replace('/0/', '/' + logId + '/'))
+    .then(function (r) { return r.ok ? r.json() : { messages: [] }; })
+    .then(function (data) {
+      (data.messages || []).forEach(function (m) {
+        if (m.error) return;
+        const isAnswer = m.role === 'assistant';
+        addBubble(
+          m.role,
+          isAnswer && m.content_html ? m.content_html : m.content,
+          m.treatment_gated && isAnswer,
+          isAnswer && !!m.content_html
+        );
+      });
+    })
+    .catch(function () { /* history is optional */ });
+})();
+</script>
+
+{% endblock %}

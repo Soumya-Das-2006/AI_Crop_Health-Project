@@ -1,0 +1,12 @@
+# Railway / Render / Heroku-style process definitions.
+#
+# `release` runs on every deploy, before the new version serves traffic, so the
+# database schema is migrated before any code that depends on it goes live.
+# collectstatic runs here too because WhiteNoise serves from STATIC_ROOT.
+release: python manage.py migrate --noinput && python manage.py collectstatic --noinput
+#
+# 2 workers x 2 threads. TensorFlow plus the 19MB model costs roughly 600-800MB
+# PER WORKER, because each one loads its own copy. On a 1GB instance use
+# --workers 1, or the OOM killer will stop the process on startup.
+# --timeout 120 allows for slow CNN inference on a cold worker.
+web: gunicorn AI_Crop_Health.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120 --access-logfile - --error-logfile -

@@ -5,6 +5,10 @@ from django.utils import timezone
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     bio = models.TextField(blank=True, help_text="Short bio for the author")
@@ -77,15 +81,24 @@ class Comment(models.Model):
     def get_replies(self):
         return Comment.objects.filter(parent=self, is_approved=True)
 
-# Signal to create UserProfile when User is created
+# Signal to create the blog author profile when a User is created.
+#
+# Previously this was two receivers: one calling a bare UserProfile.create()
+# (which raises IntegrityError if a profile already exists) and one that ran
+# instance.userprofile.save() on EVERY User.save(), writing the row again even
+# when nothing had changed. Because post_save runs inside the caller's
+# transaction, a failure here rolled back the whole enclosing operation - for
+# example agrolease farmer registration. Now: idempotent, create-only, and
+# never allowed to abort the caller.
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
-    if created:
-        UserProfile.objects.create(user=instance)
-
-@receiver(post_save, sender=User)
-def save_user_profile(sender, instance, **kwargs):
+    if not created:
+        return
     try:
-        instance.userprofile.save()
-    except UserProfile.DoesNotExist:
-        UserProfile.objects.create(user=instance)
+        UserProfile.objects.get_or_create(user=instance)
+    except Exception:
+        # A missing author profile is cosmetic (bio/avatar on blog posts) and is
+        # recreated lazily. It must never break user registration.
+        logger.exception(
+            "Could not create blog UserProfile for user id=%s", instance.pk,
+        )

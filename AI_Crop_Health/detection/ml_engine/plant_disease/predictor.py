@@ -1,15 +1,21 @@
 """
 Plant Disease Prediction Engine
 ================================
-Production-ready disease diagnosis system with:
-- H5 model loading
+Production disease diagnosis system with:
+- H5 model loading (MobileNetV1 backbone, 38-class PlantVillage head)
 - Image preprocessing
 - Disease knowledge mapping
-- 97% accuracy threshold enforcement
+- Confidence gating on softmax probability, top-2 margin and entropy
+
+NOTE ON ACCURACY: this model's accuracy has never been measured on a held-out
+set. CONFIDENCE_THRESHOLD below is a gate on per-prediction confidence, NOT a
+statement of model accuracy. Do not advertise an accuracy figure until
+`manage.py evaluate_plant_disease` has been run against a labelled split.
 """
 
 import os
 import json
+import logging
 import numpy as np
 from PIL import Image
 from io import BytesIO
@@ -20,6 +26,8 @@ os.environ.setdefault('TF_USE_LEGACY_KERAS', '1')
 import tensorflow as tf
 from tensorflow import keras
 from .image_utils import ImageValidator
+
+logger = logging.getLogger(__name__)
 
 
 class PlantDiseasePredictor:
@@ -32,7 +40,22 @@ class PlantDiseasePredictor:
     MODEL_PATH = os.path.join(os.path.dirname(__file__), 'models', 'plant_disease_prediction_model.h5')
     CLASS_INDICES_PATH = os.path.join(os.path.dirname(__file__), 'dataset', 'class_indices.json')
     IMAGE_SIZE = (224, 224)  # Standard for most plant disease models
-    ACCURACY_THRESHOLD = 97.0
+
+    # Gate on a single prediction's confidence. This is NOT a model accuracy.
+    CONFIDENCE_THRESHOLD = 97.0
+    # Backwards-compatible alias (older callers read ACCURACY_THRESHOLD).
+    ACCURACY_THRESHOLD = CONFIDENCE_THRESHOLD
+
+    # Temperature for calibration. T == 1.0 means NO calibration is applied.
+    # Fit a real value with `manage.py fit_plant_disease_temperature` once a
+    # labelled validation split exists, then set PLANT_DISEASE_TEMPERATURE.
+    TEMPERATURE = float(os.environ.get('PLANT_DISEASE_TEMPERATURE', '1.0'))
+
+    # A confident-but-ambiguous prediction (two classes close together, or a
+    # flat distribution) is downgraded even when top-1 probability is high.
+    # These are relative measures and need no fitting.
+    MIN_MARGIN = 0.15   # top1 - top2 probability
+    MAX_ENTROPY = 0.75  # normalised Shannon entropy, 0 = certain, 1 = uniform
     
     def __init__(self):
         """Initialize model and load class indices."""
@@ -42,24 +65,101 @@ class PlantDiseasePredictor:
         self.image_validator = ImageValidator()
         self._load_model()
         self._load_class_indices()
+        self._validate_model_contract()
     
     def _load_model(self):
         """Load the H5 Keras model."""
+        if not os.path.exists(self.MODEL_PATH):
+            raise RuntimeError(f"Model file not found: {self.MODEL_PATH}")
         try:
-            self.model = keras.models.load_model(self.MODEL_PATH)
-            print(f"✓ Model loaded successfully from {self.MODEL_PATH}")
+            self.model = keras.models.load_model(self.MODEL_PATH, compile=False)
         except Exception as e:
-            raise RuntimeError(f"Failed to load model: {str(e)}")
+            raise RuntimeError(f"Failed to load model: {e}") from e
+        # Logged, not printed: print() of non-ASCII raises UnicodeEncodeError on
+        # a cp1252 Windows console, which previously surfaced as a bogus
+        # "Failed to load model" and took the whole diagnosis feature offline.
+        logger.info("Plant disease model loaded from %s", self.MODEL_PATH)
     
     def _load_class_indices(self):
         """Load class indices mapping from JSON."""
         try:
-            with open(self.CLASS_INDICES_PATH, 'r') as f:
+            with open(self.CLASS_INDICES_PATH, 'r', encoding='utf-8') as f:
                 self.class_indices = json.load(f)
-            print(f"✓ Loaded {len(self.class_indices)} disease classes")
+            logger.info("Loaded %d disease classes", len(self.class_indices))
         except Exception as e:
-            raise RuntimeError(f"Failed to load class indices: {str(e)}")
+            raise RuntimeError(f"Failed to load class indices: {e}") from e
     
+    def _validate_model_contract(self):
+        """
+        Fail loudly if the model head and the label map disagree.
+
+        This is the regression that shipped: a 38-output model was paired with a
+        35-entry class_indices.json, so every index from 4 upward resolved to the
+        wrong disease and indices 35-37 resolved to "Unknown". Three diseased
+        cherry leaves were reported as Cherry healthy at 100% confidence.
+        A mismatch is never recoverable at runtime - refuse to start instead.
+        """
+        try:
+            n_outputs = int(self.model.output_shape[-1])
+        except Exception as e:
+            raise RuntimeError(f"Could not determine model output size: {e}") from e
+
+        n_labels = len(self.class_indices)
+        if n_outputs != n_labels:
+            raise RuntimeError(
+                f"Model/label contract violated: the model emits {n_outputs} "
+                f"classes but {self.CLASS_INDICES_PATH} defines {n_labels}. "
+                "Predictions would be silently mislabelled. Ship the "
+                "class_indices.json produced by the same training run as the "
+                "weights."
+            )
+
+        missing = [str(i) for i in range(n_outputs) if str(i) not in self.class_indices]
+        if missing:
+            raise RuntimeError(
+                f"Label map is missing indices {missing[:5]} "
+                f"(and {max(0, len(missing) - 5)} more) required by the model head."
+            )
+
+        if abs(self.TEMPERATURE - 1.0) < 1e-9:
+            logger.warning(
+                "Plant disease confidence is UNCALIBRATED (temperature=1.0). "
+                "Reported confidence is raw softmax and will be overconfident. "
+                "Fit a temperature on a labelled split and set "
+                "PLANT_DISEASE_TEMPERATURE."
+            )
+        logger.info(
+            "Model/label contract OK: %d classes, temperature=%.3f",
+            n_outputs, self.TEMPERATURE,
+        )
+
+    def _calibrate(self, probs):
+        """
+        Temperature-scale a softmax vector and derive reliability signals.
+
+        softmax(log(p)/T) is exact temperature scaling of the original logits,
+        because log(p) differs from the logits only by a constant and softmax is
+        shift-invariant. T == 1.0 returns the input unchanged.
+
+        Returns (calibrated_probs, margin, normalised_entropy).
+        """
+        probs = np.asarray(probs, dtype=np.float64)
+        probs = np.clip(probs, 1e-12, 1.0)
+
+        if abs(self.TEMPERATURE - 1.0) > 1e-9:
+            scaled = np.log(probs) / self.TEMPERATURE
+            scaled -= scaled.max()
+            exp = np.exp(scaled)
+            probs = exp / exp.sum()
+
+        order = np.sort(probs)[::-1]
+        margin = float(order[0] - order[1]) if probs.size > 1 else 1.0
+
+        n = probs.size
+        entropy = float(-(probs * np.log(probs)).sum())
+        max_entropy = float(np.log(n)) if n > 1 else 1.0
+        return probs, margin, (entropy / max_entropy if max_entropy else 0.0)
+
     def _preprocess_image(self, image_file):
         """
         Preprocess uploaded image for model input.
@@ -117,41 +217,49 @@ class PlantDiseasePredictor:
             
             # Extract crop name
             crop_raw = parts[0]
-            # Clean crop name (remove parenthetical variants)
-            crop_name = crop_raw.split('(')[0].strip()
-            # Capitalize properly
-            crop_name = crop_name.replace('_', ' ').title()
-            
+            # Clean crop name (remove parenthetical variants).
+            #
+            # strip() must run AFTER the underscores become spaces. Done the
+            # other way round, "Cherry_(including_sour)" -> "Cherry_" ->
+            # "Cherry " keeps a trailing space, which was displayed to farmers
+            # and stored in DiagnosisLog.predicted_crop. That affected all six
+            # Cherry and Corn classes and broke any exact-match lookup on crop.
+            crop_name = crop_raw.split('(')[0].replace('_', ' ').strip().title()
+
             # Extract disease name
             disease_raw = parts[1]
             # Handle "healthy" case
             if disease_raw.lower() == 'healthy':
                 disease_name = "Healthy"
             else:
-                # Replace underscores with spaces and capitalize
-                disease_name = disease_raw.replace('_', ' ').title()
-            
+                # Same ordering issue: "Common_rust_" would keep a trailing space.
+                disease_name = disease_raw.replace('_', ' ').strip().title()
+
             return crop_name, disease_name
             
         except Exception:
             return "Unknown", "Unknown"
     
-    def _get_diagnosis_status(self, confidence):
+    def _get_diagnosis_status(self, confidence, margin=None, entropy=None):
         """
-        Determine diagnosis reliability status based on confidence.
-        
-        Args:
-            confidence: Confidence percentage (0-100)
-        
-        Returns:
-            String: "reliable", "caution", or "unreliable"
+        Determine diagnosis reliability from confidence, top-2 margin and entropy.
+
+        Raw softmax from a 38-class head is badly overconfident, so probability
+        alone is not enough: an ambiguous prediction can still read 99.9%.
+        A high-probability result whose runner-up is close, or whose overall
+        distribution is flat, is downgraded to "caution".
+
+        Returns "reliable", "caution" or "unreliable".
         """
-        if confidence >= self.ACCURACY_THRESHOLD:
-            return "reliable"
-        elif confidence >= 90.0:
+        if confidence >= self.CONFIDENCE_THRESHOLD:
+            ambiguous = (
+                (margin is not None and margin < self.MIN_MARGIN)
+                or (entropy is not None and entropy > self.MAX_ENTROPY)
+            )
+            return "caution" if ambiguous else "reliable"
+        if confidence >= 90.0:
             return "caution"
-        else:
-            return "unreliable"
+        return "unreliable"
     
     def _get_disease_info(self, disease_name, crop_name):
         """
@@ -240,19 +348,35 @@ class PlantDiseasePredictor:
             
             # Get prediction
             predictions = self.model.predict(img_array, verbose=0)
-            
+            raw_probs = predictions[0]
+
+            # Calibrate and derive reliability signals
+            probs, margin, entropy = self._calibrate(raw_probs)
+
             # Get class with highest probability
-            class_index = int(np.argmax(predictions[0]))
-            confidence = float(predictions[0][class_index]) * 100
-            
-            # Get class name
-            class_name = self.class_indices.get(str(class_index), "Unknown")
-            
+            class_index = int(np.argmax(probs))
+            confidence = float(probs[class_index]) * 100
+            raw_confidence = float(raw_probs[class_index]) * 100
+
+            # Runner-up, so the UI can show what else it considered
+            ranked = np.argsort(probs)[::-1]
+            top_predictions = [
+                {
+                    "class_name": self.class_indices[str(int(i))],
+                    "confidence": round(float(probs[int(i)]) * 100, 2),
+                }
+                for i in ranked[:3]
+            ]
+
+            # Get class name. The contract check in __init__ guarantees this key
+            # exists, so a KeyError here is a real bug rather than bad input.
+            class_name = self.class_indices[str(class_index)]
+
             # Parse crop and disease
             crop_name, disease_name = self._parse_class_name(class_name)
-            
+
             # Get diagnosis status
-            diagnosis_status = self._get_diagnosis_status(confidence)
+            diagnosis_status = self._get_diagnosis_status(confidence, margin, entropy)
             
             # Get disease information
             disease_info = self._get_disease_info(disease_name, crop_name)
@@ -266,12 +390,22 @@ class PlantDiseasePredictor:
                 "confidence_bar": int(confidence),
                 "class_index": class_index,
                 "class_name": class_name,
+                # views.py persists DiagnosisLog.class_label from this key.
+                # It previously read "class_label", which this dict never had,
+                # so every logged row stored the literal string "Unknown".
+                "class_label": class_name,
+                "top_predictions": top_predictions,
 
-                # Accuracy enforcement
+                # Confidence gating
                 "diagnosis_status": diagnosis_status,
-                "accuracy_threshold": self.ACCURACY_THRESHOLD,
-                "model_expected_accuracy": ">=97%",
-                "meets_threshold": confidence >= self.ACCURACY_THRESHOLD,
+                "confidence_threshold": self.CONFIDENCE_THRESHOLD,
+                "accuracy_threshold": self.CONFIDENCE_THRESHOLD,
+                "raw_confidence": round(raw_confidence, 2),
+                "calibrated_confidence": round(confidence, 2),
+                "is_calibrated": abs(self.TEMPERATURE - 1.0) > 1e-9,
+                "margin": round(margin, 4),
+                "entropy_score": round(entropy, 4),
+                "meets_threshold": diagnosis_status == "reliable",
 
                 # Disease information
                 "cause": disease_info["cause"],

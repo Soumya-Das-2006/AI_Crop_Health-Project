@@ -6,7 +6,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST, require_GET
 from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
@@ -15,15 +15,21 @@ from PIL import Image
 import base64
 import io
 
-from .forms import PlantDiseaseUploadForm
+from core.imaging import compress_image
+from .forms import PlantDiseaseUploadForm, InsectUploadForm
 from .models import (
-    DiagnosisLog, 
-    QualityRejectionLog, 
-    AgricultureSuggestion, 
-    AgricultureAlert, 
-    UserReaction, 
+    DiagnosisLog,
+    QualityRejectionLog,
+    AgricultureSuggestion,
+    AgricultureAlert,
+    UserReaction,
     APIAccessLog,
-    DetectionHistory
+    DetectionHistory,
+    DiagnosisConversation,
+    DiagnosisMessage,
+    InsectIdentificationLog,
+    ChatSession,
+    ChatMessage,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,13 +38,34 @@ logger = logging.getLogger(__name__)
 # ML ENGINES IMPORT (WITH ERROR HANDLING)
 # ======================================================
 try:
-    from .ml_engine.plant_disease.predictor import PlantDiseasePredictor
-    plant_disease_predictor = PlantDiseasePredictor()
+    # Import the module-level singleton rather than constructing a second
+    # predictor: each instance loads its own copy of the ~20MB H5 model and
+    # builds its own TF graph, so constructing one here doubled memory use.
+    from .ml_engine.plant_disease.predictor import plant_disease_predictor
     PLANT_DISEASE_AVAILABLE = True
 except Exception as e:
     plant_disease_predictor = None
     PLANT_DISEASE_AVAILABLE = False
     logger.error(f"Plant disease model import failed: {type(e).__name__}: {str(e)}")
+
+# Diagnosis routing (crop.health primary, bundled .h5 offline fallback) and the
+# single abstention policy both tiers answer to.
+from .ml_engine.plant_disease import abstention
+from .ml_engine.plant_disease import service as diagnosis_service
+from .ml_engine.insect import service as insect_service
+from . import ask_ai
+from . import answer_format
+from . import chatbot_engine
+
+# The quality validator needs only PIL/numpy/cv2, never TensorFlow. Importing
+# it directly keeps Stage 1 alive when the H5 model cannot load - which is the
+# normal case on a host without TF, and the case where crop.health answers.
+try:
+    from .ml_engine.plant_disease.image_utils import ImageValidator
+    image_validator = ImageValidator()
+except Exception as e:
+    image_validator = None
+    logger.error(f"Image validator import failed: {type(e).__name__}: {str(e)}")
 
 try:
     from .ml_engine.crop.predictor import predict_crop, is_model_available
@@ -93,13 +120,13 @@ if GEMINI_AVAILABLE and genai:
                 gemini_model = gemini_client
                 gemini_vision_model = gemini_client
                 GEMINI_NEW_API = True
-                print("✓ Gemini AI client initialized successfully (NEW SDK)")
+                print("Gemini AI client initialized successfully (NEW SDK)")
             else:
                 # Old API structure
                 genai.configure(api_key=gemini_api_key)
                 gemini_model = genai.GenerativeModel('gemini-pro')
                 gemini_vision_model = genai.GenerativeModel('gemini-pro-vision')
-                print("✓ Gemini AI client initialized successfully (OLD SDK)")
+                print("Gemini AI client initialized successfully (OLD SDK)")
         else:
             print("Warning: GEMINI_API_KEY not configured")
     except Exception as e:
@@ -125,9 +152,12 @@ def call_gemini_ai(prompt, use_vision=False):
     
     try:
         if GEMINI_NEW_API:
-            # New SDK: Call generate_content directly on client
-            response = gemini_model.generate_content(
-                model="gemini-1.5-flash-8b" if not use_vision else "gemini-1.5-flash-8b",
+            # google-genai exposes generation under client.models, not on the
+            # Client itself. Calling it on the client raised AttributeError,
+            # which the except below swallowed into a None return - so every
+            # Gemini call in this app silently did nothing.
+            response = gemini_model.models.generate_content(
+                model=getattr(settings, "GEMINI_CHAT_MODEL", "gemini-2.5-flash"),
                 contents=prompt,
                 config={
                     'temperature': 0.7,
@@ -453,22 +483,22 @@ def _update_state_from_user_message(user_message, state):
         if detected_crop:
             state['crop'] = detected_crop
             state['current_step'] = 'INTENT_DETECTION'
-            logger.info(f"✓ Crop detected: {detected_crop}, moving to INTENT_DETECTION")
+            logger.info("Crop detected: %s, moving to INTENT_DETECTION", detected_crop)
     
     # Detect intent if crop known but intent not set
     elif state['crop'] and not state['intent']:
         detected_intent = _detect_intent_from_message(user_message)
         if detected_intent != 'UNCLEAR':
             state['intent'] = detected_intent
-            logger.info(f"✓ Intent detected: {detected_intent}")
+            logger.info("Intent detected: %s", detected_intent)
             
             # Update step based on intent
             if detected_intent == 'PROBLEM':
                 state['current_step'] = 'SYMPTOM_COLLECTION'
-                logger.info("→ Moving to SYMPTOM_COLLECTION")
+                logger.info("Moving to SYMPTOM_COLLECTION")
             elif detected_intent in ['CROPPING_TIPS', 'FERTILIZER', 'SCHEME']:
                 state['current_step'] = 'PROVIDE_ADVICE'
-                logger.info("→ Moving to PROVIDE_ADVICE")
+                logger.info("Moving to PROVIDE_ADVICE")
     
     # Collect symptoms if intent is PROBLEM
     elif state['intent'] == 'PROBLEM' and not state['symptoms']:
@@ -478,7 +508,7 @@ def _update_state_from_user_message(user_message, state):
         if any(keyword in user_message.lower() for keyword in symptom_keywords):
             state['symptoms'] = user_message
             state['current_step'] = 'DIAGNOSIS'
-            logger.info(f"✓ Symptoms collected: {user_message[:50]}, moving to DIAGNOSIS")
+            logger.info("Symptoms collected: %s, moving to DIAGNOSIS", user_message[:50])
     
     # Detect language
     if not state['language']:
@@ -690,158 +720,218 @@ def chatbot(request):
     return render(request, "detection/chatbot.html")
 
 
-@csrf_exempt
+def _chatbot_owner_sessions(request):
+    if not request.session.session_key:
+        request.session.create()
+    return ChatSession.objects.filter(
+        session_key=request.session.session_key,
+        user=request.user if request.user.is_authenticated else None,
+    )
+
+
+def _chatbot_conversation_list(sessions):
+    conversations = []
+    for chat_session in sessions.prefetch_related("messages"):
+        messages = list(chat_session.messages.all())
+        first_message = next(
+            (message for message in messages
+             if message.role == ChatMessage.ROLE_USER and message.content),
+            None,
+        )
+        conversations.append({
+            "id": chat_session.pk,
+            "title": (
+                first_message.content[:60]
+                if first_message else "New conversation"
+            ),
+            "message_count": len(messages),
+            "last_active_at": chat_session.last_active_at.isoformat(),
+        })
+    return conversations
+
+
+@require_POST
+def chatbot_new(request):
+    """Create a separate conversation for the current visitor."""
+    _chatbot_owner_sessions(request)
+    chat_session = ChatSession.objects.create(
+        session_key=request.session.session_key,
+        user=request.user if request.user.is_authenticated else None,
+        user_ip=request.META.get("REMOTE_ADDR"),
+    )
+    return JsonResponse({"session_id": chat_session.pk})
+
+
+@require_POST
+def chatbot_reset(request):
+    """Delete all conversations belonging to the current visitor."""
+    sessions = _chatbot_owner_sessions(request)
+    session_key = request.session.session_key
+    sessions.delete()
+    chat_session = ChatSession.objects.create(
+        session_key=session_key,
+        user=request.user if request.user.is_authenticated else None,
+        user_ip=request.META.get("REMOTE_ADDR"),
+    )
+    return JsonResponse({"session_id": chat_session.pk})
+
+
+@require_POST
 def chatbot_api(request):
     """
-    State-based sequential chatbot API
-    Strictly follows step-by-step flow with persistent state
+    Open agriculture chatbot.
+
+    Answers any farming question in the farmer's own language, backed by Groq
+    with Gemini as a second provider, and stores every turn in the database.
+
+    This replaced a state machine that interrogated the farmer for a crop and
+    an intent before answering anything, and which never actually reached a
+    model - it called a method the Gemini client does not have, swallowed the
+    AttributeError, and served canned text for every conversation.
     """
-    if request.method != "POST":
-        return JsonResponse({"error": "POST method required"}, status=405)
-    
     try:
-        data = json.loads(request.body)
-        user_message = data.get("message", "").strip()
-        
-        if not user_message:
-            return JsonResponse({
-                "error": "Message cannot be empty",
-                "response": "Please type your farming question."
-            }, status=400)
-        
-        # Initialize session if needed
-        if not request.session.session_key:
-            request.session.create()
-        
-        # Get current state from session
-        state = _get_conversation_state(request.session)
-        
-        # Check for reset command
-        reset_keywords = ['reset', 'restart', 'new', 'शुरू', 'নতুন', 'start again']
-        if any(keyword in user_message.lower() for keyword in reset_keywords):
-            # Clear state
-            state = {
-                'crop': None,
-                'intent': None,
-                'symptoms': None,
-                'current_step': 'CROP_IDENTIFICATION',
-                'language': None,
-                'history': []
+        data = json.loads(request.body or "{}")
+    except ValueError:
+        return JsonResponse(
+            {"error": "Invalid JSON",
+             "response": "Sorry, I could not read that. Please try again."},
+            status=400,
+        )
+
+    user_message = (data.get("message") or "").strip()
+    if not user_message:
+        return JsonResponse(
+            {"error": "Message cannot be empty",
+             "response": "Please type your farming question."},
+            status=400,
+        )
+
+    if not request.session.session_key:
+        request.session.create()
+
+    sessions = _chatbot_owner_sessions(request)
+    conversation_id = data.get("conversation_id")
+    if conversation_id is not None:
+        if not str(conversation_id).isdigit():
+            return JsonResponse({"error": "Invalid conversation"}, status=400)
+        chat_session = sessions.filter(pk=conversation_id).first()
+        if chat_session is None:
+            return JsonResponse({"error": "Conversation not found"}, status=404)
+    else:
+        chat_session = sessions.first()
+        if chat_session is None:
+            chat_session = ChatSession.objects.create(
+                session_key=request.session.session_key,
+                user=request.user if request.user.is_authenticated else None,
+                user_ip=request.META.get("REMOTE_ADDR"),
+            )
+
+    if chat_session.messages.count() >= chatbot_engine.MAX_MESSAGES_PER_SESSION:
+        return JsonResponse(
+            {"error": "Conversation limit reached",
+             "response": "This conversation is very long. Please start a new one."},
+            status=429,
+        )
+
+    history = [
+        (m.role, m.content)
+        for m in chat_session.messages.order_by("created_at", "id")
+        if m.content
+    ]
+
+    try:
+        text, html, meta = chatbot_engine.answer(user_message, history=history)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc), "response": str(exc)}, status=400)
+    except chatbot_engine.ChatbotUnavailable as exc:
+        # Record the failed turn: a run of these is the signal that both
+        # providers are down, and dropping it hides that from the admin.
+        ChatMessage.objects.create(
+            session=chat_session, role=ChatMessage.ROLE_USER, content=user_message
+        )
+        ChatMessage.objects.create(
+            session=chat_session, role=ChatMessage.ROLE_ASSISTANT,
+            content="", error=str(exc),
+        )
+        logger.error("Chatbot unavailable: %s", exc)
+        payload = {
+            "error": "assistant_unavailable",
+            "response": "The assistant is unavailable right now. Please try again shortly.",
+        }
+        if settings.DEBUG:
+            payload["detail"] = str(exc)
+        return JsonResponse(payload, status=503)
+
+    ChatMessage.objects.create(
+        session=chat_session,
+        role=ChatMessage.ROLE_USER,
+        content=user_message,
+        language=meta["language"],
+    )
+    ChatMessage.objects.create(
+        session=chat_session,
+        role=ChatMessage.ROLE_ASSISTANT,
+        content=text,
+        language=meta["language"],
+        provider=meta["provider"],
+        model_name=meta["model_name"],
+        latency_ms=meta["latency_ms"],
+        used_fallback=meta["used_fallback"],
+    )
+
+    if chat_session.language != meta["language"]:
+        chat_session.language = meta["language"]
+    chat_session.save(update_fields=["language", "last_active_at"])
+
+    return JsonResponse({
+        "response": text,
+        "response_html": html,
+        "status": "success",
+        "language": meta["language"],
+        "provider": meta["provider"],
+        "used_fallback": meta["used_fallback"],
+        "session_id": chat_session.id,
+    })
+
+
+@require_GET
+def chatbot_history(request):
+    """Prior turns for this browser session, so a reload keeps the thread."""
+    sessions = _chatbot_owner_sessions(request)
+    conversation_id = request.GET.get("conversation_id")
+    if conversation_id:
+        if not conversation_id.isdigit():
+            return JsonResponse({"error": "Invalid conversation"}, status=400)
+        chat_session = sessions.filter(pk=conversation_id).first()
+        if chat_session is None:
+            return JsonResponse({"error": "Conversation not found"}, status=404)
+    else:
+        chat_session = sessions.first()
+
+    if chat_session is None:
+        chat_session = ChatSession.objects.create(
+            session_key=request.session.session_key,
+            user=request.user if request.user.is_authenticated else None,
+            user_ip=request.META.get("REMOTE_ADDR"),
+        )
+
+    return JsonResponse({
+        "session_id": chat_session.id,
+        "conversations": _chatbot_conversation_list(sessions),
+        "messages": [
+            {
+                "role": m.role,
+                "content": m.content,
+                "content_html": (
+                    answer_format.render_markdown(m.content)
+                    if m.role == ChatMessage.ROLE_ASSISTANT else ""
+                ),
+                "error": bool(m.error),
             }
-            _save_conversation_state(request.session, state)
-            
-            return JsonResponse({
-                "response": "Conversation reset. Let's start fresh!\n\nनई शुरुआत! / নতুন শুরু!\n\nWhich crop are you growing?\nKaun si fasal uga rahe ho?\nকোন ফসল চাষ করছেন?",
-                "status": "success",
-                "state": state['current_step'],
-                "crop": None,
-                "intent": None
-            })
-        
-        # Update state based on user message BEFORE generating response
-        state = _update_state_from_user_message(user_message, state)
-        
-        # Check if Gemini is configured
-        if not gemini_model:
-            # Use state-aware fallback
-            bot_response = _get_state_aware_fallback_response(user_message, state)
-            
-            # Update state with bot response
-            state['history'].append({
-                'user': user_message,
-                'bot': bot_response
-            })
-            if len(state['history']) > 10:
-                state['history'] = state['history'][-10:]
-            
-            _save_conversation_state(request.session, state)
-            
-            return JsonResponse({
-                "response": bot_response,
-                "status": "fallback",
-                "warning": "AI service temporarily unavailable. Using basic responses.",
-                "state": state['current_step'],
-                "crop": state['crop'],
-                "intent": state['intent']
-            })
-        
-        # Build state-aware prompt
-        full_prompt = _build_state_aware_prompt(user_message, state)
-        
-        # Call Gemini API
-        try:
-            if GEMINI_NEW_API:
-                response = gemini_model.generate_content(
-                    model="gemini-1.5-flash-8b",
-                    contents=full_prompt,
-                    config={
-                        'temperature': 0.7,
-                        'top_p': 0.8,
-                        'top_k': 40,
-                        'max_output_tokens': 500,
-                    }
-                )
-                bot_response = response.text.strip()
-            else:
-                response = gemini_model.generate_content(full_prompt)
-                bot_response = response.text.strip()
-            
-            # Update state with bot response
-            state = _update_state_from_bot_response(bot_response, state)
-            
-            # Add to history
-            state['history'].append({
-                'user': user_message,
-                'bot': bot_response
-            })
-            
-            # Save updated state
-            _save_conversation_state(request.session, state)
-            
-            return JsonResponse({
-                "response": bot_response,
-                "status": "success",
-                "state": state['current_step'],
-                "crop": state['crop'],
-                "intent": state['intent']
-            })
-            
-        except Exception as gemini_error:
-            print(f"Gemini API Error: {gemini_error}")
-            # Fallback with current state
-            bot_response = _get_state_aware_fallback_response(user_message, state)
-            
-            # Update state
-            state['history'].append({
-                'user': user_message,
-                'bot': bot_response
-            })
-            if len(state['history']) > 10:
-                state['history'] = state['history'][-10:]
-            
-            _save_conversation_state(request.session, state)
-            
-            return JsonResponse({
-                "response": bot_response,
-                "status": "fallback",
-                "warning": "AI service error. Using basic response.",
-                "state": state['current_step'],
-                "crop": state['crop'],
-                "intent": state['intent']
-            })
-    
-    except json.JSONDecodeError:
-        return JsonResponse({
-            "error": "Invalid JSON",
-            "response": "Sorry, I couldn't understand your request. Please try again."
-        }, status=400)
-    
-    except Exception as e:
-        print(f"Chatbot Error: {e}")
-        return JsonResponse({
-            "error": str(e),
-            "response": "Sorry, something went wrong. Please try again."
-        }, status=500)
+            for m in chat_session.messages.order_by("created_at", "id")
+            if m.content
+        ],
+    })
 
 
 # ======================================================
@@ -887,6 +977,7 @@ def plant_disease_diagnosis(request):
                 "result": result,
                 "error": None,
                 "image_quality": image_quality_details,
+                "ask_ai_presets": ask_ai.preset_choices(),
             }
         )
 
@@ -919,8 +1010,8 @@ def plant_disease_diagnosis(request):
 
             try:
                 # ========== STAGE 1: IMAGE QUALITY VALIDATION ==========
-                validation_result = plant_disease_predictor.image_validator.validate(image)
-                
+                validation_result = image_validator.validate(image)
+
                 # Get image metadata
                 image.seek(0)
                 img_pil = Image.open(image)
@@ -941,19 +1032,25 @@ def plant_disease_diagnosis(request):
                     )
 
                     # Return error to user
-                    recommendations = plant_disease_predictor.image_validator.get_quality_recommendations(validation_result)
+                    recommendations = image_validator.get_quality_recommendations(validation_result)
                     error_message = validation_result.get('reason', 'Image validation failed')
                     raise ValueError(f"{error_message}", recommendations)
-                
+
                 # ========== STAGE 2: ML INFERENCE ==========
+                # Routed: crop.health when configured and reachable, otherwise
+                # the bundled 38-class model. Both return the same contract.
                 image.seek(0)
-                prediction = plant_disease_predictor.predict(image)
-                
+                prediction = diagnosis_service.diagnose(image)
+
                 # ========== STAGE 3: GEMINI CROSS-VALIDATION (OPTIONAL) ==========
                 used_gemini = False
                 gemini_result = None
                 
-                if gemini_vision_model and 90 <= prediction.get('confidence', 0) < 98:
+                # Trigger on the verdict, not on a raw number: crop.health
+                # probabilities live in a different range to a PlantVillage
+                # softmax, so a hardcoded 90-98 window fires for one provider
+                # and never for the other. "caution" means borderline in both.
+                if gemini_vision_model and prediction.get('diagnosis_status') == abstention.CAUTION:
                     try:
                         image.seek(0)
                         gemini_result = _validate_with_gemini_vision(
@@ -971,29 +1068,41 @@ def plant_disease_diagnosis(request):
                         elif gemini_result.get('recommendation') == 'uncertain':
                             prediction['confidence'] = min(prediction.get('confidence', 0), gemini_result.get('gemini_confidence', 50))
                         
-                        # Re-determine status after Gemini adjustment
-                        if prediction.get('confidence', 0) >= 98:
-                            prediction['diagnosis_status'] = 'highly_reliable'
-                        elif prediction.get('confidence', 0) >= 95:
-                            prediction['diagnosis_status'] = 'moderate_confidence'
-                        else:
-                            prediction['diagnosis_status'] = 'unreliable'
-                        
-                        # Re-apply confidence gating
-                        if prediction.get('diagnosis_status') != 'highly_reliable':
+                        # Gemini is a second opinion, never a promotion: it can
+                        # only move a verdict downwards. Re-deriving the status
+                        # from raw confidence here is what previously invented
+                        # the 'highly_reliable'/'moderate_confidence' labels
+                        # that nothing else in the codebase understands.
+                        if gemini_result.get('recommendation') == 'reject':
+                            prediction['diagnosis_status'] = abstention.UNRELIABLE
+                        elif gemini_result.get('recommendation') == 'uncertain':
+                            prediction['diagnosis_status'] = abstention.CAUTION
+
+                        # One gate, same as every other path. Prevention advice
+                        # stays: it is generic good practice and carries no
+                        # risk of sending someone to buy the wrong chemical.
+                        if not abstention.may_show_treatment(prediction.get('diagnosis_status')):
                             prediction['solutions'] = []
-                            prediction['prevention'] = []
-                        
+                            prediction['treatment_withheld'] = True
+                        prediction['recommendation'] = abstention.referral_message(
+                            prediction.get('diagnosis_status'), prediction.get('crop')
+                        )
+
                         used_gemini = True
                     except Exception as gemini_error:
                         print(f"Gemini validation error: {gemini_error}")
                 
                 # ========== STAGE 4: SAVE IMAGE & CREATE AUDIT LOG ==========
                 image.seek(0)
+                # Store a compressed copy. Phone photos arrive at 2-5MB; the
+                # model only ever sees 224x224, so the full-resolution original
+                # costs disk and page weight for no diagnostic benefit.
+                # Re-encoding also strips EXIF, including embedded GPS.
                 diagnosis_log = DiagnosisLog.objects.create(
+                    user=request.user if request.user.is_authenticated else None,
                     session_id=session_id,
                     user_ip=user_ip,
-                    uploaded_image=image,
+                    uploaded_image=compress_image(image),
                     image_resolution=img_resolution,
                     image_size_kb=img_size_kb,
                     quality_score=validation_result.get('quality_score', 0),
@@ -1008,6 +1117,8 @@ def plant_disease_diagnosis(request):
                     calibrated_confidence=prediction.get('confidence', 0),
                     entropy_score=prediction.get('entropy_score'),
                     diagnosis_status=prediction.get('diagnosis_status', 'unreliable'),
+                    provider=prediction.get('provider', 'local'),
+                    fallback_reason=prediction.get('fallback_reason'),
                     used_gemini_validation=used_gemini,
                     gemini_confidence=gemini_result.get('gemini_confidence') if gemini_result else None,
                     gemini_recommendation=gemini_result.get('recommendation') if gemini_result else None,
@@ -1038,7 +1149,20 @@ def plant_disease_diagnosis(request):
                     "diagnosis_log_id": int(diagnosis_log_id),
                     "used_gemini": bool(used_gemini),
                     "image_url": image_url,
-                    "accuracy_policy": "98-100% enforced"
+
+                    # Top-3 is the single largest accuracy gain available here:
+                    # for crop.health, the right answer is on screen 66% of the
+                    # time against 48% for top-1 alone on in-the-wild photos.
+                    # Stage 5 used to drop this, so the UI never saw it.
+                    "top_predictions": list(prediction.get("top_predictions", [])),
+
+                    # What the farmer needs to know about trusting this answer.
+                    "treatment_withheld": bool(prediction.get("treatment_withheld", False)),
+                    "recommendation": str(prediction.get("recommendation", "")),
+                    "provider": str(prediction.get("provider", "unknown")),
+                    "limited_coverage": bool(prediction.get("limited_coverage", False)),
+                    "supported_crops": list(prediction.get("supported_crops", [])),
+                    "scientific_name": str(prediction.get("scientific_name", "")),
                 }
 
                 image_quality_details = {
@@ -1095,13 +1219,14 @@ def plant_disease_diagnosis(request):
             "result": result,
             "error": error,
             "image_quality": image_quality_details,
+            "ask_ai_presets": ask_ai.preset_choices(),
         }
     )
 
 
-def _validate_with_gemini_vision(image_file, crop, disease, tflite_confidence):
+def _validate_with_gemini_vision(image_file, crop, disease, model_confidence):
     """
-    Cross-validate TFLite prediction using Gemini Vision.
+    Cross-validate the CNN prediction using Gemini Vision.
     Gemini can only DOWNGRADE confidence, never upgrade.
     
     Returns dict with recommendation and concerns.
@@ -1115,7 +1240,7 @@ CRITICAL RULES:
 4. Your job is to VALIDATE or REJECT the AI's prediction
 
 AI Prediction: {crop} - {disease}
-AI Confidence: {tflite_confidence:.1f}%
+AI Confidence: {model_confidence:.1f}%
 
 Your Task:
 1. Describe what you see (leaf color, spots, patterns, texture)
@@ -1196,20 +1321,39 @@ If image is too blurry/dark/unclear, respond:
 # ======================================================
 
 def _get_ui_color(status):
-    """Map diagnosis status to Bootstrap color class"""
+    """
+    Map diagnosis status to a Bootstrap colour class.
+
+    Keyed on the abstention vocabulary (reliable/caution/unreliable), which is
+    what every provider actually emits. The old highly_reliable /
+    moderate_confidence keys are kept as aliases only so historic rows read
+    back sensibly - nothing emits them any more, which is why every live badge
+    used to fall through to "secondary".
+    """
     return {
+        abstention.RELIABLE: "success",
+        abstention.CAUTION: "warning",
+        abstention.UNRELIABLE: "danger",
+        abstention.NOT_A_PLANT: "secondary",
         "highly_reliable": "success",
         "moderate_confidence": "warning",
-        "unreliable": "danger",
     }.get(status, "secondary")
 
 
 def _get_status_badge(status):
-    """Get human-readable status badge text"""
+    """
+    Human-readable badge text.
+
+    No percentages: the thresholds differ per provider, so a fixed "≥98%"
+    label was wrong for crop.health and unverified for the local model.
+    """
     return {
-        "highly_reliable": "Highly Reliable (≥98%)",
-        "moderate_confidence": "Moderate Confidence (95–97%)",
-        "unreliable": "Low Confidence (<95%)",
+        abstention.RELIABLE: "Confident",
+        abstention.CAUTION: "Needs confirmation",
+        abstention.UNRELIABLE: "Not confident",
+        abstention.NOT_A_PLANT: "No plant detected",
+        "highly_reliable": "Confident",
+        "moderate_confidence": "Needs confirmation",
     }.get(status, "Unknown")
 
 
@@ -1227,6 +1371,71 @@ def _get_quality_status(score):
 # ======================================================
 # CROP RECOMMENDATION VIEW
 # ======================================================
+
+def _latest_sensor_prefill(user):
+    """
+    Return the newest sensor reading for a field this user can see, shaped for
+    the crop-recommendation form, or None.
+
+    Audit gap C: the farmer's nodes already measure N, P, K, pH, temperature and
+    humidity, but the form still made them type those numbers in by hand.
+    iot_sensor is optional, so a missing app must not break this page.
+    """
+    if not user or not user.is_authenticated:
+        return None
+    try:
+        from iot_sensor.access import visible_fields
+        from iot_sensor.models import SensorReading
+    except Exception:
+        return None
+
+    try:
+        reading = (
+            SensorReading.objects
+            .filter(field__in=visible_fields(user), is_valid=True)
+            .select_related('field')
+            .order_by('-recorded_at')
+            .first()
+        )
+    except Exception:
+        logger.exception('Could not load sensor prefill')
+        return None
+    if reading is None:
+        return None
+
+    values = {
+        'N': reading.nitrogen_ppm,
+        'P': reading.phosphorus_ppm,
+        'K': reading.potassium_ppm,
+        'temperature': reading.temperature_c,
+        'humidity': reading.humidity_pct,
+        'ph': reading.soil_ph,
+        'rainfall': reading.rainfall_mm,
+    }
+    def _tidy(value):
+        """
+        Render 142.0 as 142 but leave 6.8 as 6.8.
+
+        The N/P/K inputs are step=1 number fields, so a value of "142.0" fails
+        browser validation. Done here rather than with the floatformat filter,
+        which forces a fixed number of decimals and would round 6.85 to 6.9.
+        """
+        if isinstance(value, float) and value.is_integer():
+            return int(value)
+        return value
+
+    present = {k: _tidy(v) for k, v in values.items() if v is not None}
+    if not present:
+        return None
+
+    return {
+        'values': present,
+        'missing': sorted(set(values) - set(present)),
+        'field_name': reading.field.name,
+        'recorded_at': reading.recorded_at,
+        'node_count': reading.field.nodes.count(),
+    }
+
 
 def crop_recommendation_view(request):
     result = None
@@ -1296,6 +1505,12 @@ def crop_recommendation_view(request):
             error = str(e)
             logger.error(f"Crop recommendation error: {error}")
 
+    # Pre-fill from the farmer's own live sensor readings when we have them, so
+    # they are not retyping numbers their hardware already measured.
+    sensor_prefill = None
+    if request.method != "POST":
+        sensor_prefill = _latest_sensor_prefill(request.user)
+
     return render(
         request,
         "detection/crop.html",
@@ -1305,6 +1520,7 @@ def crop_recommendation_view(request):
             "suitability": suitability,
             "feature_importance": feature_importance,
             "error": error,
+            "sensor_prefill": sensor_prefill,
         }
     )
 
@@ -1923,3 +2139,284 @@ def delete_detection_history(request, history_id):
         history.delete()
         messages.success(request, "Detection removed from your history.")
     return redirect('detection:my_detection_history')
+
+# ======================================================
+# ASK AI - follow-up questions about a diagnosed photo
+# ======================================================
+
+def _conversation_owner_matches(conversation, request):
+    """
+    A thread belongs to the signed-in user, or to the anonymous session that
+    created it. Without this check any visitor could read another farmer's
+    photo and conversation by guessing a diagnosis id.
+    """
+    if conversation.user_id:
+        return request.user.is_authenticated and conversation.user_id == request.user.id
+    return bool(conversation.session_id) and conversation.session_id == request.session.session_key
+
+
+@require_POST
+def ask_ai_api(request):
+    """
+    Ask one question about a diagnosed image.
+
+    POST JSON: {"diagnosis_log_id": int, "preset": "treatment"} or
+               {"diagnosis_log_id": int, "question": "free text"}
+
+    Returns the stored answer plus whether treatment advice was gated, so the
+    UI can show the farmer why no chemical was named.
+    """
+    try:
+        payload = json.loads(request.body or "{}")
+    except ValueError:
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    log_id = payload.get("diagnosis_log_id")
+    insect_log_id = payload.get("insect_log_id")
+
+    if not log_id and not insect_log_id:
+        return JsonResponse(
+            {"error": "diagnosis_log_id or insect_log_id is required"}, status=400
+        )
+    if log_id and insect_log_id:
+        return JsonResponse(
+            {"error": "Pass only one of diagnosis_log_id or insect_log_id"}, status=400
+        )
+
+    diagnosis_log = None
+    insect_log = None
+    if insect_log_id:
+        try:
+            insect_log = InsectIdentificationLog.objects.get(pk=insect_log_id)
+        except InsectIdentificationLog.DoesNotExist:
+            return JsonResponse({"error": "Insect identification not found"}, status=404)
+        kind = "insect"
+        subject_status = insect_log.identification_status
+    else:
+        try:
+            diagnosis_log = DiagnosisLog.objects.get(pk=log_id)
+        except DiagnosisLog.DoesNotExist:
+            return JsonResponse({"error": "Diagnosis not found"}, status=404)
+        kind = "plant"
+        subject_status = diagnosis_log.diagnosis_status
+
+    try:
+        question_text, preset_id = ask_ai.resolve_question(
+            payload.get("preset"), payload.get("question"), kind=kind
+        )
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    if not request.session.session_key:
+        request.session.create()
+
+    # One thread per diagnosis per viewer, so follow-ups keep their context.
+    conversation, _ = DiagnosisConversation.objects.get_or_create(
+        diagnosis_log=diagnosis_log,
+        insect_log=insect_log,
+        user=request.user if request.user.is_authenticated else None,
+        session_id=None if request.user.is_authenticated else request.session.session_key,
+        defaults={"language": getattr(settings, "CROP_HEALTH_LANGUAGE", "en")},
+    )
+
+    if not _conversation_owner_matches(conversation, request):
+        return JsonResponse({"error": "Not your diagnosis"}, status=403)
+
+    if conversation.messages.count() >= ask_ai.MAX_MESSAGES_PER_CONVERSATION:
+        return JsonResponse(
+            {"error": "This conversation has reached its limit. Start a new diagnosis."},
+            status=429,
+        )
+
+    DiagnosisMessage.objects.create(
+        conversation=conversation,
+        role=DiagnosisMessage.ROLE_USER,
+        content=question_text,
+        preset=preset_id,
+    )
+
+    try:
+        answer, answer_html, meta = ask_ai.ask(conversation, question_text)
+    except ask_ai.AskAIUnavailable as exc:
+        # Persist the failure: a thread of unanswered questions is a signal,
+        # and silently dropping it hides outages from the admin panel.
+        DiagnosisMessage.objects.create(
+            conversation=conversation,
+            role=DiagnosisMessage.ROLE_ASSISTANT,
+            content="",
+            preset=preset_id,
+            error=str(exc),
+            treatment_gated=not abstention.may_show_treatment(subject_status),
+        )
+        if isinstance(exc, ask_ai.AskAINotConfigured):
+            # Not a transient outage - no request will ever succeed until the
+            # server is fixed, so say something different and log it loudly.
+            logger.error("Ask AI is NOT CONFIGURED: %s", exc)
+            message = "The assistant is not set up on this server yet."
+        else:
+            logger.error(
+                "Ask AI unavailable for %s %s: %s", kind, log_id or insect_log_id, exc
+            )
+            message = "The assistant is unavailable right now. Please try again."
+
+        payload = {"error": message}
+        # In development, hand the actual reason back so it is visible in the
+        # page instead of only in a terminal the developer may not be watching.
+        if settings.DEBUG:
+            payload["detail"] = str(exc)
+        return JsonResponse(payload, status=503)
+
+    message = DiagnosisMessage.objects.create(
+        conversation=conversation,
+        role=DiagnosisMessage.ROLE_ASSISTANT,
+        content=answer,
+        preset=preset_id,
+        model_name=meta["model_name"],
+        latency_ms=meta["latency_ms"],
+        treatment_gated=meta["treatment_gated"],
+    )
+
+    return JsonResponse({
+        # Markdown is the stored source of truth; HTML is what the page shows.
+        "answer": answer,
+        "answer_html": answer_html,
+        "message_id": message.id,
+        "conversation_id": conversation.id,
+        "treatment_gated": meta["treatment_gated"],
+        "had_image": meta["had_image"],
+        "question": question_text,
+        "preset": preset_id,
+    })
+
+
+@require_GET
+def ask_ai_history(request, log_id, kind="plant"):
+    """Prior turns for a subject, so a reloaded page keeps the thread."""
+    lookup = {}
+    if kind == "insect":
+        if not InsectIdentificationLog.objects.filter(pk=log_id).exists():
+            return JsonResponse({"error": "Insect identification not found"}, status=404)
+        lookup["insect_log_id"] = log_id
+    else:
+        if not DiagnosisLog.objects.filter(pk=log_id).exists():
+            return JsonResponse({"error": "Diagnosis not found"}, status=404)
+        lookup["diagnosis_log_id"] = log_id
+
+    conversation = DiagnosisConversation.objects.filter(
+        user=request.user if request.user.is_authenticated else None,
+        session_id=None if request.user.is_authenticated else request.session.session_key,
+        **lookup
+    ).first()
+
+    if conversation is None:
+        return JsonResponse({"messages": []})
+
+    if not _conversation_owner_matches(conversation, request):
+        return JsonResponse({"error": "Not your diagnosis"}, status=403)
+
+    return JsonResponse({
+        "conversation_id": conversation.id,
+        "messages": [
+            {
+                "role": m.role,
+                "content": m.content,
+                # Rendered on read rather than stored, so the markdown in the
+                # database stays the single source of truth.
+                "content_html": (
+                    answer_format.render_markdown(m.content)
+                    if m.role == DiagnosisMessage.ROLE_ASSISTANT else ""
+                ),
+                "preset": m.preset,
+                "treatment_gated": m.treatment_gated,
+                "error": bool(m.error),
+            }
+            for m in conversation.messages.order_by("created_at", "id")
+        ],
+    })
+
+
+# ======================================================
+# INSECT IDENTIFICATION
+# ======================================================
+
+def insect_identification(request):
+    """
+    Identify an insect from a photo.
+
+    Deliberately does not produce treatment advice. insect.id names the taxon;
+    whether that taxon is a pest in this field is a separate judgement the API
+    does not reliably make (it reports danger-to-humans for about 3.5% of
+    taxa), so the page says what the insect is and routes the decision to a
+    human. Many field insects are predators and pollinators, and spraying one
+    because an app named it makes the season worse, not better.
+    """
+    result = None
+    error = None
+
+    if request.method == "POST":
+        form = InsectUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            image = form.cleaned_data['image']
+
+            if image_validator is not None:
+                validation_result = image_validator.validate(image)
+                if not validation_result.get('is_valid', True):
+                    error = validation_result.get('reason', 'Image validation failed')
+                    return render(request, "detection/insect.html", {
+                        "form": form, "result": None, "error": error,
+                        "ask_ai_presets": ask_ai.preset_choices(kind="insect"),
+                    })
+
+            try:
+                image.seek(0)
+                img_pil = Image.open(image)
+                img_resolution = f"{img_pil.width}x{img_pil.height}"
+            except Exception:
+                img_resolution = ""
+
+            try:
+                image.seek(0)
+                result = insect_service.identify(image)
+            except insect_service.InsectServiceUnavailable as exc:
+                logger.warning("Insect identification unavailable: %s", exc)
+                error = str(exc)
+            except Exception as exc:
+                logger.error("Insect identification failed: %s", exc)
+                error = "Could not identify this photo. Please try again."
+
+            if result is not None:
+                if not request.session.session_key:
+                    request.session.create()
+
+                image.seek(0)
+                top = (result.get("top_predictions") or [{}])[0]
+                log = InsectIdentificationLog.objects.create(
+                    user=request.user if request.user.is_authenticated else None,
+                    session_id=request.session.session_key,
+                    user_ip=request.META.get('REMOTE_ADDR'),
+                    uploaded_image=compress_image(image),
+                    image_resolution=img_resolution,
+                    image_size_kb=(image.size // 1024) if getattr(image, 'size', None) else None,
+                    common_name=result.get("name", "")[:200],
+                    scientific_name=result.get("scientific_name", "")[:200],
+                    taxon_id=str(top.get("id") or "")[:100],
+                    confidence=result.get("confidence", 0.0),
+                    top_predictions=result.get("top_predictions"),
+                    margin=result.get("margin"),
+                    entropy_score=result.get("entropy_score"),
+                    identification_status=result.get("identification_status", "unreliable"),
+                    pest_status=result.get("pest_status", "unknown"),
+                    provider=result.get("provider", "insect.id"),
+                    model_version=result.get("model_version", "")[:60],
+                )
+                result["log_id"] = log.id
+                result["image_url"] = log.uploaded_image.url if log.uploaded_image else None
+    else:
+        form = InsectUploadForm()
+
+    return render(request, "detection/insect.html", {
+        "form": form,
+        "result": result,
+        "error": error,
+        "ask_ai_presets": ask_ai.preset_choices(kind="insect"),
+    })

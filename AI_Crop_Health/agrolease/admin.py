@@ -1,18 +1,30 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.utils import timezone
-from .models import AgroProfile, Land, LeaseRequest, LeaseAgreement
+from django.utils.html import format_html
+from .models import AgroProfile, Land, LeaseMessage, LeaseRequest, LeaseAgreement
 from core.admin import AuditModelAdminMixin
 from core.services import AuditService
+from core.admin_mixins import ExportCsvMixin
 
 
 @admin.register(AgroProfile)
-class AgroProfileAdmin(AuditModelAdminMixin, admin.ModelAdmin):
-	list_display = ('user', 'role', 'phone_number', 'document_status', 'is_verified', 'verified_at', 'verified_by')
-	list_filter = ('role', 'is_verified')
+class AgroProfileAdmin(ExportCsvMixin, AuditModelAdminMixin, admin.ModelAdmin):
+	"""
+	Verification review queue.
+
+	Both owners AND farmers are reviewed here. They need different documents:
+	an owner must prove ownership, a farmer (who is leasing, not owning) cannot
+	and instead provides a selfie. The required set comes from
+	AgroProfile.REQUIRED_DOCUMENTS, so the actions below never hardcode it.
+	"""
+	list_display = ('user', 'role', 'phone_number', 'verification_status',
+	                'document_status', 'is_verified', 'verified_at', 'verified_by')
+	list_filter = ('role', 'verification_status', 'is_verified')
 	search_fields = ('user__username', 'user__email', 'user__first_name', 'phone_number')
 	list_select_related = ('user',)
-	actions = ('verify_owners', 'unverify_owners')
-	readonly_fields = ('verification_submitted_at', 'verified_at', 'verified_by')
+	actions = ('verify_profiles', 'reject_profiles', 'unverify_profiles', 'export_as_csv')
+	readonly_fields = ('verification_submitted_at', 'verified_at', 'verified_by',
+	                   'required_documents_display', 'document_links')
 
 	def save_model(self, request, obj, form, change):
 		if obj.is_verified:
@@ -21,49 +33,131 @@ class AgroProfileAdmin(AuditModelAdminMixin, admin.ModelAdmin):
 		else:
 			obj.verified_at = None
 			obj.verified_by = None
+		obj.sync_verification_status()
 		super().save_model(request, obj, form, change)
 
 	fieldsets = (
-		(None, {'fields': ('user', 'role', 'roles', 'phone_number', 'is_verified')}),
-		('Verification documents', {'fields': ('government_id_type', 'government_id_document', 'ownership_proof', 'address_proof', 'selfie_photo')}),
+		(None, {'fields': ('user', 'role', 'roles', 'phone_number')}),
+		('Verification decision', {
+			'fields': ('verification_status', 'is_verified', 'rejection_reason'),
+			'description': 'Tick "is verified" to approve. A rejection reason is '
+			               'shown to the user, so write something actionable.',
+		}),
+		('Verification documents', {
+			'fields': ('required_documents_display', 'document_links',
+			           'government_id_type', 'government_id_document',
+			           'ownership_proof', 'address_proof', 'selfie_photo'),
+		}),
 		('Verification audit', {'fields': ('verification_submitted_at', 'verified_at', 'verified_by')}),
 	)
 
 	@admin.display(description='Documents')
 	def document_status(self, obj):
-		return 'Complete' if all((obj.government_id_document, obj.ownership_proof, obj.address_proof)) else 'Incomplete'
+		missing = obj.missing_documents()
+		if not missing:
+			return 'Complete'
+		return f'Missing: {", ".join(missing)}'
 
-	@admin.action(description='Verify selected owner profiles')
-	def verify_owners(self, request, queryset):
+	@admin.display(description='Required for this role')
+	def required_documents_display(self, obj):
+		if not obj.pk:
+			return '-'
+		required = ', '.join(label for label, _ in obj.required_documents())
+		return f'{obj.verification_role()}: {required}'
+
+	@admin.display(description='Uploaded documents')
+	def document_links(self, obj):
+		if not obj.pk:
+			return '-'
+		links = []
+		for label, field_name in obj.required_documents():
+			document = getattr(obj, field_name, None)
+			if document:
+				links.append(f'<a href="{document.url}" target="_blank" rel="noopener">{label}</a>')
+			else:
+				links.append(f'<span style="color:#b00">{label} (missing)</span>')
+		return format_html(' &nbsp;|&nbsp; '.join(links))
+
+	@admin.action(description='Approve verification (owners and farmers)')
+	def verify_profiles(self, request, queryset):
+		verified = 0
+		blocked = []
+		for profile in queryset:
+			missing = profile.missing_documents()
+			if missing:
+				blocked.append(f'{profile.user.username} ({", ".join(missing)})')
+				continue
+			profile.is_verified = True
+			profile.verified_at = timezone.now()
+			profile.verified_by = request.user
+			profile.sync_verification_status()
+			profile.save(update_fields=(
+				'is_verified', 'verified_at', 'verified_by',
+				'verification_status', 'rejection_reason',
+			))
+			AuditService.log('VERIFY', model_obj=profile, request=request)
+			verified += 1
+		self.message_user(request, f'{verified} profile(s) verified.')
+		if blocked:
+			self.message_user(
+				request,
+				'Not verified, documents incomplete: ' + '; '.join(blocked),
+				level=messages.WARNING,
+			)
+
+	@admin.action(description='Reject verification')
+	def reject_profiles(self, request, queryset):
+		rejected = 0
+		for profile in queryset:
+			profile.is_verified = False
+			profile.verified_at = None
+			profile.verified_by = None
+			profile.verification_status = 'rejected'
+			if not profile.rejection_reason:
+				missing = profile.missing_documents()
+				profile.rejection_reason = (
+					'Missing or unreadable documents: ' + ', '.join(missing)
+					if missing else
+					'Documents did not pass review. Please re-upload clear copies.'
+				)
+			profile.save(update_fields=(
+				'is_verified', 'verified_at', 'verified_by',
+				'verification_status', 'rejection_reason',
+			))
+			AuditService.log('REJECT', model_obj=profile, request=request)
+			rejected += 1
+		self.message_user(
+			request,
+			f'{rejected} profile(s) rejected. The reason is shown to the user, '
+			f'who can re-upload and resubmit.',
+		)
+
+	@admin.action(description='Remove verification (back to pending)')
+	def unverify_profiles(self, request, queryset):
 		updated = 0
 		for profile in queryset:
-			if profile.role == 'owner' or 'owner' in (profile.roles or []):
-				if profile.government_id_document and profile.ownership_proof and profile.address_proof:
-					profile.is_verified = True
-					profile.verified_at = timezone.now()
-					profile.verified_by = request.user
-					profile.save(update_fields=('is_verified', 'verified_at', 'verified_by'))
-					AuditService.log('VERIFY', model_obj=profile, request=request)
-					updated += 1
-		self.message_user(request, f'{updated} owner profile(s) verified.')
-
-	@admin.action(description='Remove verification from selected owners')
-	def unverify_owners(self, request, queryset):
-		updated = queryset.filter(role='owner').update(is_verified=False, verified_at=None, verified_by=None)
-		for profile in queryset.filter(role='owner'):
-			AuditService.log('STATUS_CHANGE', model_obj=profile, request=request, metadata={'action': 'unverified'})
-		self.message_user(request, f'{updated} owner profile(s) marked pending.')
+			profile.is_verified = False
+			profile.verified_at = None
+			profile.verified_by = None
+			profile.sync_verification_status()
+			profile.save(update_fields=(
+				'is_verified', 'verified_at', 'verified_by', 'verification_status',
+			))
+			AuditService.log('STATUS_CHANGE', model_obj=profile, request=request,
+			                 metadata={'action': 'unverified'})
+			updated += 1
+		self.message_user(request, f'{updated} profile(s) marked pending.')
 
 
 @admin.register(Land)
-class LandAdmin(AuditModelAdminMixin, admin.ModelAdmin):
+class LandAdmin(ExportCsvMixin, AuditModelAdminMixin, admin.ModelAdmin):
 	list_display = ('location', 'owner', 'owner_verified', 'size_acres', 'soil_type', 'rent_amount', 'status', 'created_at')
 	list_filter = ('status', 'soil_type', 'water_source', 'created_at')
 	search_fields = ('location', 'owner__username', 'owner__first_name', 'suitable_crops')
 	list_select_related = ('owner',)
 	readonly_fields = ('created_at', 'updated_at', 'latitude', 'longitude')
 	date_hierarchy = 'created_at'
-	actions = ('approve_listings', 'reject_listings')
+	actions = ('approve_listings', 'reject_listings', 'export_as_csv')
 
 	@admin.display(boolean=True, description='Owner verified')
 	def owner_verified(self, obj):
@@ -96,13 +190,13 @@ class LandAdmin(AuditModelAdminMixin, admin.ModelAdmin):
 
 
 @admin.register(LeaseRequest)
-class LeaseRequestAdmin(AuditModelAdminMixin, admin.ModelAdmin):
+class LeaseRequestAdmin(ExportCsvMixin, AuditModelAdminMixin, admin.ModelAdmin):
 	list_display = ('land', 'farmer', 'status', 'request_date')
 	list_filter = ('status', 'request_date')
 	search_fields = ('land__location', 'farmer__username', 'farmer__first_name', 'message')
 	list_select_related = ('land', 'farmer')
 	readonly_fields = ('request_date',)
-	actions = ('approve_leases', 'reject_leases', 'complete_leases')
+	actions = ('approve_leases', 'reject_leases', 'complete_leases', 'export_as_csv')
 	date_hierarchy = 'request_date'
 
 	@admin.action(description='Approve owner-approved lease requests')
@@ -152,3 +246,29 @@ class LeaseAgreementAdmin(AuditModelAdminMixin, admin.ModelAdmin):
 	search_fields = ('lease_request__land__location', 'lease_request__farmer__username')
 	list_select_related = ('lease_request',)
 	readonly_fields = ('created_at',)
+
+
+@admin.register(LeaseMessage)
+class LeaseMessageAdmin(admin.ModelAdmin):
+	"""
+	Read-only view of the owner/farmer conversation on a lease.
+
+	Registered so support can investigate a dispute. Messages are never editable
+	here: altering what someone said would destroy the record's value.
+	"""
+	list_display = ('created_at', 'lease_request', 'sender', 'short_body')
+	list_filter = ('created_at',)
+	search_fields = ('body', 'sender__username', 'lease_request__land__location')
+	list_select_related = ('sender', 'lease_request', 'lease_request__land')
+	date_hierarchy = 'created_at'
+	readonly_fields = ('lease_request', 'sender', 'body', 'created_at')
+
+	@admin.display(description='Message')
+	def short_body(self, obj):
+		return (obj.body[:80] + '...') if len(obj.body) > 80 else obj.body
+
+	def has_add_permission(self, request):
+		return False
+
+	def has_change_permission(self, request, obj=None):
+		return False

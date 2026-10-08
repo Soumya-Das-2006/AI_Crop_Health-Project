@@ -1,8 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.models import User
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.db.models import Sum
@@ -34,6 +36,30 @@ def profile_roles(profile):
         roles.append(profile.role)
     return [role for role in roles if role in {'owner', 'farmer'}]
 
+def workspace_url(profile, user=None):
+    """
+    Where this account's AgroLease workspace lives.
+
+    One place decides it, so a role mismatch can send the user straight to the
+    page they should be on instead of bouncing them through /agrolease/ and
+    making them pay for a second redirect.
+    """
+    if profile is None:
+        return reverse('agrolease:register')
+    if profile.role == 'owner':
+        return reverse('agrolease:owner_dashboard')
+    if profile.role == 'farmer':
+        return reverse('agrolease:farmer_dashboard')
+    if profile.role == 'admin':
+        # The AgroLease "admin" role is not the same thing as Django staff
+        # status. Sending a non-staff account to /admin/ just bounces it to a
+        # staff login screen it can never pass.
+        if user is not None and user.is_staff:
+            return reverse('admin:index')
+        return reverse('agrolease:role_selection') + '?switch=1'
+    return reverse('agrolease:role_selection')
+
+
 def role_selection(request):
     if request.method == 'POST' and request.user.is_authenticated:
         profile = getattr(request.user, 'agroprofile', None)
@@ -47,25 +73,43 @@ def role_selection(request):
                 'owner': 'agrolease:owner_dashboard',
                 'farmer': 'agrolease:farmer_dashboard',
             }[selected_role])
-            messages.error(request, 'Choose a role registered on this account.')
-            return render(request, 'agrolease/role_selection.html', {'available_roles': available_roles})
+        if selected_role in {'owner', 'farmer'}:
+            return redirect(f"{reverse('agrolease:register')}?role={selected_role}")
+        messages.error(request, 'Choose a role registered on this account.')
+        return render(
+            request,
+            'agrolease/role_selection.html',
+            {'available_roles': available_roles},
+        )
 
-    # Redirect authenticated users to their current workspace.
-    if request.user.is_authenticated and request.GET.get('switch') != '1':
+    if request.user.is_authenticated:
         profile = getattr(request.user, 'agroprofile', None)
-        if profile:
-            if profile.role == 'owner':
-                return redirect('agrolease:owner_dashboard')
-            elif profile.role == 'farmer':
-                return redirect('agrolease:farmer_dashboard')
-            elif profile.role == 'admin':
-                return redirect('/admin/')
-    if request.user.is_authenticated and request.GET.get('switch') == '1':
-        profile = getattr(request.user, 'agroprofile', None)
-        if profile and profile.role == 'admin':
-            return redirect('/admin/')
-        return render(request, 'agrolease/role_selection.html', {'available_roles': profile_roles(profile) if profile else []})
-    return redirect('agrolease:login')
+
+        # Signed in, but never joined AgroLease. This used to fall through to
+        # the login redirect below, which sent an already-authenticated user
+        # back to the login page - a dead end they could not get out of.
+        if profile is None:
+            messages.info(
+                request,
+                'Choose whether you are a land owner or a farmer to use AgroLease.',
+            )
+            return redirect('agrolease:register')
+
+        if request.GET.get('switch') == '1':
+            if profile.role == 'admin' and request.user.is_staff:
+                return redirect('admin:index')
+            return render(
+                request,
+                'agrolease/role_selection.html',
+                {'available_roles': profile_roles(profile)},
+            )
+
+        return redirect(workspace_url(profile, request.user))
+
+    # Anonymous. Redirect straight to the real login page and carry `next`, so
+    # signing in returns here instead of dropping the visitor on the account
+    # dashboard. Going via agrolease:login cost an extra hop and lost `next`.
+    return redirect(f"{settings.LOGIN_URL}?next={request.get_full_path()}")
 
 def logout_view(request):
     return redirect('accounts:logout')
@@ -86,7 +130,14 @@ def register_view(request):
         
         if role not in {'owner', 'farmer'}:
             messages.error(request, 'Select either Land Owner or Farmer.')
-            return render(request, 'agrolease/register.html')
+            selected_role = request.GET.get('role', '')
+            if selected_role not in {'owner', 'farmer'}:
+                selected_role = ''
+            return render(
+                request,
+                'agrolease/register.html',
+                {'selected_role': selected_role},
+            )
             
         profile, created = AgroProfile.objects.get_or_create(
             user=request.user,
@@ -95,8 +146,8 @@ def register_view(request):
         
         if not created:
             if role in profile_roles(profile):
-                messages.error(request, 'You already have this role.')
-                return redirect('agrolease:role_selection')
+                messages.info(request, 'You already have this role - switch to it below.')
+                return redirect(reverse('agrolease:role_selection') + '?switch=1')
                 
         if role == 'owner':
             if not all((
@@ -106,7 +157,12 @@ def register_view(request):
                 request.FILES.get('address_proof'),
             )):
                 messages.error(request, 'Owners must submit ID type, government ID, ownership proof, and address proof.')
-                return render(request, 'agrolease/register.html')
+                selected_role = role
+                return render(
+                    request,
+                    'agrolease/register.html',
+                    {'selected_role': selected_role},
+                )
             
             if not created:
                 profile.roles = profile_roles(profile) + [role]
@@ -125,16 +181,26 @@ def register_view(request):
                 profile.roles = profile_roles(profile) + [role]
                 profile.save(update_fields=['roles'])
             messages.success(request, 'Farmer role added successfully.')
-            
-        return redirect('agrolease:role_selection')
+
+        return redirect(reverse('agrolease:role_selection') + '?switch=1')
         
-    return render(request, 'agrolease/register.html')
+    selected_role = request.GET.get('role', '')
+    if selected_role not in {'owner', 'farmer'}:
+        selected_role = ''
+    return render(
+        request,
+        'agrolease/register.html',
+        {'selected_role': selected_role},
+    )
 
 @login_required
 def owner_dashboard(request):
-    profile = request.user.agroprofile
-    if profile.role != 'owner':
-        return redirect('agrolease:role_selection')
+    # getattr, not request.user.agroprofile: a signed-in account with no
+    # AgroLease profile raised RelatedObjectDoesNotExist here and returned a
+    # 500. Every other view in this module already guarded for it.
+    profile = getattr(request.user, 'agroprofile', None)
+    if profile is None or profile.role != 'owner':
+        return redirect(workspace_url(profile, request.user))
 
     lands = Land.objects.filter(owner=request.user)
     # Point #3: Monthly Revenue sum
@@ -159,14 +225,14 @@ def owner_dashboard(request):
 def owner_profile(request):
     profile = getattr(request.user, 'agroprofile', None)
     if not profile or profile.role != 'owner':
-        return redirect('agrolease:role_selection')
+        return redirect(workspace_url(profile, request.user))
     return render(request, 'agrolease/owner_profile.html', {'profile': profile})
 
 @login_required
 def add_land(request):
     profile = getattr(request.user, 'agroprofile', None)
     if not profile or profile.role != 'owner':
-        return redirect('agrolease:role_selection')
+        return redirect(workspace_url(profile, request.user))
     if not profile.is_verified:
         messages.warning(request, 'Your owner profile must be verified by an administrator before adding land.')
         return redirect('agrolease:owner_profile')
@@ -191,6 +257,14 @@ def add_land(request):
 
 @login_required
 def owner_requests(request):
+    # Had no role guard, so a farmer or an account with no AgroLease profile
+    # could open the land owner's requests page. It rendered empty (the queryset
+    # is scoped to land__owner), but every other owner page redirects and this
+    # one did not.
+    profile = getattr(request.user, 'agroprofile', None)
+    if not profile or profile.role != 'owner':
+        return redirect(workspace_url(profile, request.user))
+
     requests = LeaseRequest.objects.filter(land__owner=request.user).select_related('land', 'farmer', 'farmer__agroprofile')
     return render(request, 'agrolease/owner_requests.html', {'requests': requests})
 
@@ -213,7 +287,8 @@ def lease_chat(request, request_id):
         id=request_id,
     )
     if request.user not in (lease_request.farmer, lease_request.land.owner):
-        return redirect('agrolease:role_selection')
+        return redirect(workspace_url(
+            getattr(request.user, 'agroprofile', None), request.user))
     if request.method == 'POST':
         body = request.POST.get('body', '').strip()
         if body:
@@ -272,7 +347,7 @@ def reject_lease_request(request, request_id):
 def farmer_dashboard(request):
     profile = getattr(request.user, 'agroprofile', None)
     if not profile or profile.role != 'farmer':
-        return redirect('agrolease:role_selection')
+        return redirect(workspace_url(profile, request.user))
 
     farmer_requests = LeaseRequest.objects.filter(farmer=request.user)
     active_leases = farmer_requests.filter(status='approved')
@@ -363,6 +438,19 @@ def search_land(request):
 @login_required
 def request_lease(request, land_id):
     land = get_object_or_404(Land, id=land_id)
+
+    # Only a farmer may request a lease. Without this, a land owner (or an
+    # account with no AgroLease profile) could submit a request and be stored
+    # as the `farmer` on it - including on their own parcel.
+    profile = getattr(request.user, 'agroprofile', None)
+    if not profile or profile.role != 'farmer':
+        messages.error(request, 'Only a farmer account can request a lease.')
+        return redirect(workspace_url(profile, request.user))
+
+    if land.owner_id == request.user.pk:
+        messages.error(request, 'You cannot request a lease on your own land.')
+        return redirect('agrolease:search_land')
+
     if request.method == 'POST':
         form_data = request.POST
         phone = normalize_phone(form_data.get('contact_number'))
@@ -406,17 +494,34 @@ def request_lease(request, land_id):
         return redirect('agrolease:farmer_dashboard')
     return render(request, 'agrolease/request_lease.html', {'land': land})
 
-@login_required
+# These three are shortcuts into the Django admin.
+#
+# They were @login_required, so any signed-in farmer could hit them and get
+# bounced to the staff login screen - confusing, and it advertised the admin
+# URLs. staff_member_required sends a non-staff visitor to the admin login with
+# `next` preserved and never reveals the target.
+#
+# The URLs are reversed rather than hardcoded, so renaming the admin mount
+# point or an app label cannot silently break them.
+
+@staff_member_required
 def admin_dashboard(request):
-    return redirect('/admin/')
+    return redirect('admin:index')
 
-@login_required
+
+@staff_member_required
 def admin_verifications(request):
-    return redirect('/admin/agrolease/agroprofile/?role__exact=owner&is_verified__exact=0')
+    # Previously filtered role__exact=owner, which hid every farmer awaiting
+    # review once farmers became verifiable. The queue is "submitted, not yet
+    # decided" regardless of role.
+    url = reverse('admin:agrolease_agroprofile_changelist')
+    return redirect(f'{url}?verification_status__exact=pending')
 
-@login_required
+
+@staff_member_required
 def admin_approvals(request):
-    return redirect('/admin/agrolease/land/?status__exact=pending_approval')
+    url = reverse('admin:agrolease_land_changelist')
+    return redirect(f'{url}?status__exact=pending_approval')
 
 @login_required
 def agreement_preview(request, request_id):
@@ -426,7 +531,8 @@ def agreement_preview(request, request_id):
         status__in=('approved', 'completed'),
     )
     if request.user not in (lease_req.farmer, lease_req.land.owner):
-        return redirect('agrolease:role_selection')
+        return redirect(workspace_url(
+            getattr(request.user, 'agroprofile', None), request.user))
     duration_label = f"{lease_req.land.duration_months} month" if lease_req.land.duration_months == 1 else f"{lease_req.land.duration_months} months"
     terms_text = (
         f'Lease of {lease_req.land.location} to '

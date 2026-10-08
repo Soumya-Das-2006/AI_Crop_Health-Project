@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Something went wrong — AI Crop Health</title>
+<!--
+  Deliberately self-contained: no template inheritance, no staticfiles tags, no
+  url reversing, no external requests.
+
+  (Django parses template tags inside HTML comments too, so this note avoids
+  writing those tags out literally - doing so raised TemplateSyntaxError.)
+
+  Django renders 500.html WITHOUT a request context, so context processors do
+  not run. If this page extended the site layout and the original error was in
+  the layout, a context processor or the database, rendering the error page
+  would fail too and the visitor would get a bare "Server Error (500)" with no
+  styling at all. Keeping it dependency-free means it always renders.
+-->
+<style>
+  :root { --green: #198754; --ink: #1f2d3d; --muted: #6c757d; --bg: #f8f9fa; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+  }
+  .card {
+    background: #fff; border-radius: 12px; padding: 40px 28px;
+    box-shadow: 0 2px 18px rgba(0,0,0,.08);
+    max-width: 560px; width: 100%; text-align: center;
+  }
+  .code { font-size: clamp(3rem, 11vw, 5rem); font-weight: 700; color: var(--green); line-height: 1; margin: 0 0 8px; }
+  h1 { font-size: 1.35rem; margin: 0 0 12px; }
+  p { color: var(--muted); margin: 0 0 20px; }
+  .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  a.btn {
+    display: inline-block; text-decoration: none; border-radius: 6px;
+    padding: 10px 20px; font-weight: 600;
+    background: var(--green); color: #fff; border: 2px solid var(--green);
+  }
+  a.btn.secondary { background: #fff; color: #146c43; }
+  a.btn:hover, a.btn:focus { filter: brightness(.94); }
+  a.btn:focus-visible { outline: 3px solid #0a58ca; outline-offset: 2px; }
+  .note { font-size: .875rem; margin: 22px 0 0; }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink: #e9ecef; --muted: #adb5bd; --bg: #16191d; }
+    body { background: var(--bg); }
+    .card { background: #21262d; box-shadow: none; }
+    a.btn.secondary { background: #21262d; color: #75b798; }
+  }
+</style>
+</head>
+<body>
+  <main class="card">
+    <p class="code">500</p>
+    <h1>Something went wrong on our side</h1>
+    <p>
+      This is our fault, not yours. The error has been logged and we are looking
+      into it. Nothing you submitted has been lost.
+    </p>
+    <div class="actions">
+      <a class="btn" href="/">Go to homepage</a>
+      <a class="btn secondary" href="/contact/">Report this</a>
+    </div>
+    <p class="note">
+      If this keeps happening, please tell us what you were doing when it broke.
+    </p>
+  </main>
+</body>
+</html>

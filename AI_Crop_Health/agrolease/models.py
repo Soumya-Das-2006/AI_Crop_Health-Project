@@ -8,11 +8,41 @@ class AgroProfile(models.Model):
         ('farmer', 'Farmer'),
         ('admin', 'Admin'),
     )
+    VERIFICATION_STATUS_CHOICES = (
+        ('unsubmitted', 'Not submitted'),
+        ('pending', 'Submitted - awaiting review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    )
+
+    # Documents required to verify, per role. A farmer leasing land cannot
+    # produce ownership proof, so requiring it made farmer verification
+    # impossible - which in turn made the IoT hardware gate unreachable.
+    REQUIRED_DOCUMENTS = {
+        'owner': (
+            ('government ID', 'government_id_document'),
+            ('ownership proof', 'ownership_proof'),
+            ('address proof', 'address_proof'),
+        ),
+        'farmer': (
+            ('government ID', 'government_id_document'),
+            ('address proof', 'address_proof'),
+            ('selfie photo', 'selfie_photo'),
+        ),
+    }
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='agroprofile')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='farmer')
     roles = models.JSONField(default=list, blank=True)
     phone_number = models.CharField(max_length=15, blank=True)
     is_verified = models.BooleanField(default=False)
+    verification_status = models.CharField(
+        max_length=20, choices=VERIFICATION_STATUS_CHOICES, default='unsubmitted',
+        db_index=True,
+    )
+    rejection_reason = models.TextField(
+        blank=True, help_text="Shown to the user when verification is rejected.",
+    )
     government_id_type = models.CharField(max_length=30, blank=True)
     government_id_document = models.FileField(upload_to='verification/government_id/', blank=True, null=True)
     ownership_proof = models.FileField(upload_to='verification/ownership/', blank=True, null=True)
@@ -22,22 +52,58 @@ class AgroProfile(models.Model):
     verified_at = models.DateTimeField(blank=True, null=True)
     verified_by = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True, related_name='verified_agro_profiles')
 
+    def effective_roles(self):
+        """Every role this profile holds, including the primary one."""
+        roles = list(self.roles or [])
+        if self.role and self.role not in roles:
+            roles.append(self.role)
+        return [r for r in roles if r in {'owner', 'farmer', 'admin'}]
+
+    def verification_role(self):
+        """
+        Which document set applies. Owner requirements are the stricter set, so
+        a profile holding both roles is held to the owner standard.
+        """
+        roles = self.effective_roles()
+        return 'owner' if 'owner' in roles else 'farmer'
+
+    def required_documents(self):
+        return self.REQUIRED_DOCUMENTS.get(self.verification_role(), ())
+
+    def missing_documents(self):
+        """Labels of documents still required for this profile's role."""
+        return [
+            label for label, field_name in self.required_documents()
+            if not getattr(self, field_name, None)
+        ]
+
+    def documents_complete(self):
+        return not self.missing_documents()
+
+    def sync_verification_status(self):
+        """
+        Keep verification_status consistent with is_verified.
+
+        Called from the admin and the verification views rather than save(), so
+        the transition is always explicit and update_fields stays predictable.
+        """
+        if self.is_verified:
+            self.verification_status = 'approved'
+            self.rejection_reason = ''
+        elif self.verification_status == 'approved':
+            self.verification_status = (
+                'pending' if self.verification_submitted_at else 'unsubmitted'
+            )
+        return self.verification_status
+
     def clean(self):
         super().clean()
-        owner_roles = self.roles or []
         if self.is_verified:
-            if self.role != 'owner' and 'owner' not in owner_roles:
-                raise ValidationError({'role': 'Only a land owner can be verified.'})
-            missing_documents = [
-                label for label, document in (
-                    ('government ID', self.government_id_document),
-                    ('ownership proof', self.ownership_proof),
-                    ('address proof', self.address_proof),
-                ) if not document
-            ]
+            missing_documents = self.missing_documents()
             if missing_documents:
                 raise ValidationError({
-                    'is_verified': 'Upload all required documents before verification: '
+                    'is_verified': 'Upload all required documents before verifying '
+                    f'this {self.verification_role()}: '
                     + ', '.join(missing_documents) + '.'
                 })
 

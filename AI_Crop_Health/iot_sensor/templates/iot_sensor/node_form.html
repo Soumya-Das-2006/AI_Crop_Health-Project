@@ -1,0 +1,117 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+{% block title %}Register Device — AI Crop Health{% endblock %}
+{% block content %}
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Register a Device</h1>
+    <p>Step 2 of 2 — connect your hardware to “{{ field.name }}”</p>
+  </div>
+</div>
+
+<section class="section">
+<div class="container" style="max-width:760px;">
+
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="alert alert-{% if msg.tags == 'error' %}danger{% elif msg.tags %}{{ msg.tags }}{% else %}info{% endif %}">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+
+  {% if issued_key %}
+    <div class="card border-success mb-4">
+      <div class="card-header bg-success text-white">
+        <i class="bi bi-key-fill"></i> Device key for <code class="text-white">{{ node.device_id }}</code>
+      </div>
+      <div class="card-body">
+        <p class="fw-bold text-danger mb-2">
+          Copy this now. It is shown only once.
+        </p>
+        <div class="input-group mb-3">
+          <input type="text" class="form-control font-monospace" id="device-key"
+                 value="{{ issued_key }}" readonly>
+          <button class="btn btn-outline-secondary" type="button" id="copy-key">Copy</button>
+        </div>
+        <p class="mb-2">Your device must send this on every reading, as the
+           <code>X-Device-Key</code> header. Without it the server replies 401 and
+           the reading is thrown away.</p>
+
+        <p class="mb-1"><strong>Flash these into your firmware:</strong></p>
+        <pre class="bg-light p-3 rounded small mb-0"><code>POST {{ ingest_url }}
+Content-Type: application/json
+X-Device-Key: {{ issued_key }}
+
+{
+  "device_id": "{{ node.device_id }}",
+  "soil_moisture_pct": 32.4,
+  "nitrogen_ppm": 140,
+  "phosphorus_ppm": 58,
+  "potassium_ppm": 201,
+  "soil_ph": 6.8,
+  "temperature_c": 28.3,
+  "humidity_pct": 72.1,
+  "packet_id": "PKT-0001"
+}</code></pre>
+        <p class="form-text mt-2 mb-0">
+          Send a unique <code>packet_id</code> per reading — the server uses it to
+          ignore duplicates if your device retries after a lost reply.
+        </p>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 mb-5 flex-wrap">
+      <a href="{% url 'iot_sensor:field_detail' field.pk %}" class="btn btn-primary">View field data</a>
+      <a href="{% url 'iot_sensor:hardware_home' %}" class="btn btn-outline-secondary">Done</a>
+    </div>
+    <hr>
+    <h5 class="mb-3">Add another device to this field</h5>
+  {% endif %}
+
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">
+      {% for err in form.non_field_errors %}<div>{{ err }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% for field_item in form %}
+      <div class="mb-3{% if field_item.field.widget.input_type == 'checkbox' %} form-check{% endif %}">
+        <label for="{{ field_item.id_for_label }}" class="form-label">
+          {{ field_item.label }}{% if field_item.field.required %} <span class="text-danger">*</span>{% endif %}
+        </label>
+        {{ field_item }}
+        {% if field_item.help_text %}<div class="form-text">{{ field_item.help_text }}</div>{% endif %}
+        {% for err in field_item.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
+      </div>
+    {% endfor %}
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-success">Register device</button>
+      <a href="{% url 'iot_sensor:hardware_home' %}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </form>
+
+</div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var button = document.getElementById('copy-key');
+  var input = document.getElementById('device-key');
+  if (!button || !input) { return; }
+  button.addEventListener('click', function () {
+    input.select();
+    var done = function () { button.textContent = 'Copied'; setTimeout(function () { button.textContent = 'Copy'; }, 2000); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(input.value).then(done, function () { document.execCommand('copy'); done(); });
+    } else {
+      document.execCommand('copy');
+      done();
+    }
+  });
+})();
+</script>
+{% endblock %}

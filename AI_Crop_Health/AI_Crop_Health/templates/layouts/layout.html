@@ -5,9 +5,33 @@
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>{% block title %}AgriCulture - Smart Farming Solutions{% endblock %}</title>
-  <meta name="description" content="{% block meta_description %}AgriCulture - Your partner in modern farming{% endblock %}">
-  <meta name="keywords" content="{% block meta_keywords %}agriculture, farming, crop health{% endblock %}">
+  <title>{% block title %}{{ SITE_NAME }} - AI Crop Disease Diagnosis &amp; Smart Farming{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}{{ SITE_TAGLINE }}{% endblock %}">
+  <meta name="keywords" content="{% block meta_keywords %}crop disease detection, leaf disease diagnosis, crop recommendation, fertilizer recommendation, land lease, IoT soil sensor, farming India{% endblock %}">
+  <meta name="robots" content="{% block meta_robots %}index, follow{% endblock %}">
+  <link rel="canonical" href="{% block canonical_url %}{{ CANONICAL_URL }}{% endblock %}">
+  <meta name="theme-color" content="#198754">
+
+  <!-- Link previews (WhatsApp, Facebook, LinkedIn, Twitter/X).
+       og:image and twitter:image must be ABSOLUTE urls or they are ignored. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ SITE_NAME }}">
+  <meta property="og:title" content="{% block og_title %}{{ SITE_NAME }}{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}{{ SITE_TAGLINE }}{% endblock %}">
+  <meta property="og:url" content="{{ CANONICAL_URL }}">
+  <meta property="og:locale" content="en_IN">
+  {% if SOCIAL_PREVIEW_IMAGE %}
+  <meta property="og:image" content="{{ SOCIAL_PREVIEW_IMAGE }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="{{ SITE_NAME }} - {{ SITE_TAGLINE }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="{{ SOCIAL_PREVIEW_IMAGE }}">
+  {% else %}
+  <meta name="twitter:card" content="summary">
+  {% endif %}
+  <meta name="twitter:title" content="{% block twitter_title %}{{ SITE_NAME }}{% endblock %}">
+  <meta name="twitter:description" content="{% block twitter_description %}{{ SITE_TAGLINE }}{% endblock %}">
 
   <!-- Favicons -->
   <link href="{% static 'assets/img/favicon.png' %}" rel="icon">
@@ -27,7 +51,8 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
   <!-- Main CSS File -->
-  <link href="{% static 'assets/css/main.css' %}?v=20260912" rel="stylesheet">
+  <link href="{% static 'assets/css/main.css' %}?v=20261006-19" rel="stylesheet">
+  <link href="{% static 'assets/css/translator.css' %}" rel="stylesheet">
 
   {% block extra_css %}{% endblock %}
 </head>
@@ -38,22 +63,58 @@
       <div class="row gx-0 d-none d-lg-flex">
           <div class="col-lg-7 px-5 text-start">
               <div class="h-100 d-inline-flex align-items-center me-4">
-                  <span class="fa fa-phone-alt me-2"></span>
-                  <a href="{% url 'contact:form' %}">Contact support</a>
+                  <a class="topbar-icon-link" href="tel:8159824282" aria-label="Call 8159824282" title="Call 8159824282">
+                      <i class="fa fa-phone-alt" aria-hidden="true"></i>
+                      <span>8159824282</span>
+                  </a>
               </div>
               <div class="h-100 d-inline-flex align-items-center">
-                  <span class="far fa-envelope me-2"></span>
-                  <a href="{% url 'contact:form' %}">Send us a message</a>
+                  <a class="topbar-icon-link" href="mailto:{{ company.email }}" aria-label="Email {{ company.email }}" title="{{ company.email }}">
+                      <i class="far fa-envelope" aria-hidden="true"></i>
+                      <span>{{ company.email }}</span>
+                  </a>
               </div>
           </div>
           <div class="col-lg-5 px-5 text-end">
-              <div class="h-100 d-inline-flex align-items-center mx-n2">
-                  <span>Follow Us:</span>
-                  <a class="btn btn-link text-light" href=""><i class="fab fa-facebook-f"></i></a>
-                  <a class="btn btn-link text-light" href=""><i class="fab fa-twitter"></i></a>
-                  <a class="btn btn-link text-light" href=""><i class="fab fa-linkedin-in"></i></a>
-                  <a class="btn btn-link text-light" href=""><i class="fab fa-instagram"></i></a>
+              <!-- Language picker. Lives in #topbar because translator.css
+                   styles it as "#topbar .language-select", and because the nav
+                   row has no spare horizontal space at this breakpoint.
+                   data-no-translate keeps the option labels in their own
+                   languages - translating "English" into Bengali would strand
+                   anyone trying to switch back. -->
+              <div class="h-100 d-inline-flex align-items-center me-3" data-no-translate="true">
+                  <i class="bi bi-globe2 me-2" aria-hidden="true"></i>
+<select id="language-select-desktop" class="form-select form-select-sm language-select"
+                  aria-label="Select language">
+                  <option value="en">English</option>
+                  <option value="hi">हिंदी</option>
+                  <option value="bn">বাংলা</option>
+                  <option value="mr">मराठी</option>
+                  <option value="te">తెలుగు</option>
+                  <option value="ta">தமிழ்</option>
+                  <option value="gu">ગુજરાતી</option>
+                  <option value="kn">ಕನ್ನಡ</option>
+                  <option value="ml">മലയാളം</option>
+                  <option value="pa">ਪੰਜਾਬੀ</option>
+                  <option value="or">ଓଡ଼ିଆ</option>
+                  <option value="as">অসমীয়া</option>
+                  <option value="ur">اردو</option>
+                  </select>
               </div>
+              {% if SOCIAL_ICONS %}
+              <div class="h-100 d-inline-flex align-items-center topbar-social" data-no-translate="true">
+                  <span class="me-1 d-none d-xl-inline">Follow Us:</span>
+                  {% for link in SOCIAL_ICONS %}
+                  <a class="btn btn-link text-light topbar-social-link"
+                     href="{{ link.url }}"
+                     {% if link.external %}target="_blank" rel="noopener noreferrer"{% endif %}
+                     title="{{ link.label }}"
+                     aria-label="{{ link.label }}">
+                    <i class="{{ link.icon }}" aria-hidden="true"></i>
+                  </a>
+                  {% endfor %}
+              </div>
+              {% endif %}
           </div>
       </div>
   </div>
@@ -75,12 +136,25 @@
           <li class="dropdown"><a href="#" class="fs-5"><span>Detection</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
             <ul>
               <li><a href="{% url 'detection:diagnosis' %}">Diagnosis</a></li>
+              <li><a href="{% url 'detection:insect' %}">Insect Identification</a></li>
               <li><a href="{% url 'detection:crop_recommendation' %}">Crop Recommendation</a></li>
               <li><a href="{% url 'detection:fertilizer_recommendation' %}">Fertilizer Recommendation</a></li>
               <li><a href="{% url 'detection:chatbot' %}">Agriculture Assistant</a></li>
               <li><a href="{% url 'detection:suggestion' %}">Suggestion</a></li>
             </ul>
           </li>
+          <!-- IoT Sensor App: only meaningful once signed in -->
+          {% if user.is_authenticated %}
+          <li class="dropdown"><a href="#" class="fs-5"><span>My Farm</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
+            <ul>
+              <li><a href="{% url 'iot_sensor:field_dashboard' %}">My Fields</a></li>
+              <li><a href="{% url 'iot_sensor:alert_dashboard' %}">Sensor Alerts</a></li>
+              <li><a href="{% url 'iot_sensor:hardware_home' %}">My Hardware</a></li>
+              <li><a href="{% url 'iot_sensor:metrics_dashboard' %}">System Metrics</a></li>
+              <li><a href="{% url 'detection:my_detection_history' %}">Scan History</a></li>
+            </ul>
+          </li>
+          {% endif %}
           <li class="dropdown"><a href="#" class="fs-5"><span>Pages</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
             <ul>
               <li><a href="{% url 'contact:services' %}" class="fs-5">Services</a></li>
@@ -90,7 +164,7 @@
               <li><a href="{% url 'contact:testimonials' %}" class="fs-5">Testimonials</a></li>
             </ul>
           </li>
-          <!-- Coming Soon Pages (Dropdown) -->
+          <!-- Features (Dropdown) -->
           <li class="dropdown"><a href="#" class="fs-5"><span>Features</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
             <ul>
               <li><a href="{% url 'features:cropinfo' %}">Crop Info</a></li>
@@ -137,10 +211,38 @@
           <li class="nav-auth-item"><a href="{% url 'accounts:login' %}" class="fs-5 text-success"><i class="fas fa-sign-in-alt me-1"></i> Login/Register</a></li>
           {% endif %}
         </ul>
+
+        <div class="mobile-language-control d-xl-none" data-no-translate="true">
+          <button type="button" id="mobile-language-trigger" class="mobile-language-trigger"
+                  aria-label="Open language options">
+            <span class="mobile-language-icon" aria-hidden="true">&#127760;</span>
+          </button>
+          <div id="mobile-language-menu" class="mobile-language-menu" aria-hidden="true">
+            <div class="mobile-language-header">Select language</div>
+            <div id="mobile-language-options"></div>
+          </div>
+        </div>
+
         <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
       </nav>
     </div>
   </header>
+
+  <div id="translation-loading" class="translation-loading" data-no-translate="true" aria-live="polite">
+    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+    <span>Translating...</span>
+  </div>
+
+  {# Site-wide banners driven by Site Settings in the admin. #}
+  {% if SITE_CONFIG and SITE_CONFIG.maintenance_mode %}
+    <div class="alert alert-warning text-center mb-0 rounded-0" role="alert">
+      <strong>Maintenance:</strong> {{ SITE_CONFIG.maintenance_message }}
+      {% if user.is_staff %}<span class="badge bg-dark ms-2">Staff can still browse</span>{% endif %}
+    </div>
+  {% endif %}
+  {% if SITE_ANNOUNCEMENT %}
+    <div class="alert alert-info text-center mb-0 rounded-0" role="status">{{ SITE_ANNOUNCEMENT }}</div>
+  {% endif %}
 
   <main class="main">
     {% block content %}
@@ -179,7 +281,7 @@
     <div class="footer-top">
       <div class="container">
         <div class="row gy-4">
-          <div class="col-lg-4 col-md-6 footer-about">
+          <div class="col-12 col-lg-4 footer-about">
             <a href="{% url 'index' %}" class="logo d-flex align-items-center">
               <span class="sitename">AgriCulture</span>
             </a>
@@ -191,7 +293,7 @@
             </div>
           </div>
 
-          <div class="col-lg-2 col-md-3 footer-links">
+          <div class="col-6 col-lg-2 footer-links">
             <h4>Useful Links</h4>
             <ul>
               <li><a href="{% url 'index' %}">Home</a></li>
@@ -199,10 +301,12 @@
               <li><a href="{% url 'contact:services' %}">Services</a></li>
               <li><a href="{% url 'blog:list' %}">Blog</a></li>
               <li><a href="{% url 'contact:form' %}">Contact</a></li>
+              <li><a href="{% url 'core:privacy_policy' %}">Privacy Policy</a></li>
+              <li><a href="{% url 'core:terms_and_conditions' %}">Terms &amp; Conditions</a></li>
             </ul>
           </div>
 
-          <div class="col-lg-2 col-md-3 footer-links">
+          <div class="col-6 col-lg-2 footer-links">
             <h4>Detection</h4>
             <ul>
               <li><a href="{% url 'detection:diagnosis' %}">Diagnosis</a></li>
@@ -211,7 +315,7 @@
             </ul>
           </div>
 
-          <div class="col-lg-2 col-md-3 footer-links">
+          <div class="col-6 col-lg-2 footer-links">
             <h4>Features</h4>
             <ul>
               <li><a href="{% url 'features:cropinfo' %}">Crop Info</a></li>
@@ -222,7 +326,7 @@
             </ul>
           </div>
 
-          <div class="col-lg-2 col-md-3 footer-links">
+          <div class="col-6 col-lg-2 footer-links">
             <h4>Market Place</h4>
             <ul>
               <li><a href="{% url 'marketplace:catalog' %}">All products</a></li>
@@ -245,17 +349,23 @@
           <div>
             © Copyright <strong><span>AgriCulture</span></strong>. All Rights Reserved
           </div>
+          <div class="legal-links mt-1">
+            <a href="{% url 'core:privacy_policy' %}">Privacy Policy</a>
+            <span aria-hidden="true">&middot;</span>
+            <a href="{% url 'core:terms_and_conditions' %}">Terms &amp; Conditions</a>
+            <span aria-hidden="true">&middot;</span>
+            <a href="{% url 'contact:form' %}">Contact</a>
+          </div>
           <div class="credits">
-            Complete by <a href="https://soumya-das-2006.github.io/Soumya-Das-Portfolio/">Soumya Das</a>
+            Complete by <a href="https://soumya-das-2006.github.io/Soumya-Das-Portfolio/" target="_blank" rel="noopener noreferrer">Soumya Das</a>
           </div>
         </div>
 
+        {% if SOCIAL_ICONS %}
         <div class="social-links order-first order-lg-last mb-3 mb-lg-0">
-          <a href=""><i class="bi bi-twitter-x"></i></a>
-          <a href=""><i class="bi bi-facebook"></i></a>
-          <a href=""><i class="bi bi-instagram"></i></a>
-          <a href=""><i class="bi bi-linkedin"></i></a>
+          {% for link in SOCIAL_ICONS %}{% if link.external %}<a href="{{ link.url }}" target="_blank" rel="noopener noreferrer" title="{{ link.label }}" aria-label="{{ SITE_NAME }} on {{ link.label }}"><i class="{{ link.icon }}" aria-hidden="true"></i></a>{% endif %}{% endfor %}
         </div>
+        {% endif %}
 
       </div>
     </div>
@@ -274,7 +384,14 @@
   <!-- Main JS File -->
   <script src="{% static 'assets/js/main.js' %}?v=20260912"></script>
 
+  <script>
+    window.TRANSLATE_ENDPOINT = "{% url 'translate' %}";
+  </script>
+  <script src="{% static 'assets/js/translator.js' %}"></script>
+
   {% block extra_js %}{% endblock %}
+
+  {% include "core/_cookie_consent.html" %}
   <script>
   document.getElementById("subscribe-form").addEventListener("submit", function(e) {
     e.preventDefault();

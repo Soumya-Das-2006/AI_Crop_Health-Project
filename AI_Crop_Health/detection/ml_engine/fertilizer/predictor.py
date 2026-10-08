@@ -87,16 +87,30 @@ def confidence_label(confidence: float) -> str:
 # ==================================================
 def predict_fertilizer(features: list):
     """
-    Expected feature order (MUST match training):
+    Expected feature order - verified against model.feature_names_in_, which is
+    the authoritative record from training:
+
+        ['Temparature', 'Humidity ', 'Moisture', 'Soil Type',
+         'Crop Type', 'Nitrogen', 'Potassium', 'Phosphorous']
+
+    so the list must be EIGHT values in this order:
     [
         temperature,
         humidity,
+        moisture,         # was missing from this docstring entirely
         soil_encoded,
         crop_encoded,
         nitrogen,
+        potassium,        # NOTE: potassium comes BEFORE phosphorus
         phosphorus,
-        potassium
     ]
+
+    The previous version of this docstring listed seven values and put
+    phosphorus before potassium. Following it gave either a "Expected 8
+    features, got 7" error or - worse, if the caller padded the list - a
+    confident recommendation computed with P and K swapped, which is exactly
+    the kind of wrong answer that costs a farmer a season. detection/views.py
+    has always passed the correct eight; only this text was wrong.
 
     Returns:
     {

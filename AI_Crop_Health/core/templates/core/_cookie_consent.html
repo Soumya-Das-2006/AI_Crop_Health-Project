@@ -1,0 +1,136 @@
+{% comment %}
+Cookie consent banner.
+
+Design decisions worth knowing:
+
+* Strictly necessary cookies (session, CSRF) are NOT consented to - they are
+  required for login and form security, and the law does not require consent for
+  them. The banner says so rather than pretending otherwise.
+* Analytics is the only optional category, and the script is injected ONLY after
+  the visitor accepts. Loading a tracker first and asking afterwards is the
+  common mistake that makes a banner legally useless.
+* "Reject" is as prominent as "Accept". A banner where refusing is harder than
+  agreeing is not valid consent.
+* The choice is stored in localStorage, not a cookie, so declining does not
+  itself set a cookie.
+{% endcomment %}
+
+<div id="cookie-consent" class="cookie-consent" role="region"
+     aria-label="Cookie consent" hidden>
+  <div class="cookie-consent__inner">
+    <div class="cookie-consent__text">
+      <strong>Cookies on this site</strong>
+      <p>
+        We use a few essential cookies to keep you signed in and to keep forms
+        secure &mdash; those cannot be turned off.
+        {% if ANALYTICS_ENABLED %}
+          We would also like to measure which pages are useful, but only if you
+          agree.
+        {% endif %}
+        Read our <a href="{% url 'core:privacy_policy' %}">Privacy Policy</a>.
+      </p>
+    </div>
+    <div class="cookie-consent__actions">
+      {% if ANALYTICS_ENABLED %}
+        <button type="button" class="btn btn-sm btn-success" data-cookie-accept>
+          Accept analytics
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-light" data-cookie-reject>
+          Essential only
+        </button>
+      {% else %}
+        <button type="button" class="btn btn-sm btn-success" data-cookie-reject>
+          Got it
+        </button>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<style>
+  .cookie-consent {
+    position: fixed; inset-inline: 0; bottom: 0; z-index: 1080;
+    background: #1f2d3d; color: #f8f9fa;
+    padding: 16px; box-shadow: 0 -2px 14px rgba(0,0,0,.25);
+  }
+  .cookie-consent__inner {
+    max-width: 1140px; margin: 0 auto;
+    display: flex; gap: 16px; align-items: center; justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  .cookie-consent__text { flex: 1 1 420px; min-width: 0; }
+  .cookie-consent__text p { margin: 4px 0 0; font-size: .9rem; line-height: 1.5; }
+  /* #9ec5fe on #1f2d3d gives a contrast ratio around 7:1, comfortably above
+     the WCAG AA minimum of 4.5:1. The default link blue fails against this
+     dark background. */
+  .cookie-consent__text a { color: #9ec5fe; text-decoration: underline; }
+  .cookie-consent__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .cookie-consent__actions .btn { white-space: nowrap; }
+  .cookie-consent :focus-visible { outline: 3px solid #ffc107; outline-offset: 2px; }
+  @media (max-width: 575.98px) {
+    .cookie-consent__inner { flex-direction: column; align-items: stretch; }
+    /* flex-basis applies to the MAIN axis. Once the container switches to
+       column, the 420px basis above becomes a 420px HEIGHT and the banner
+       swallows most of a phone screen. Reset it here. */
+    .cookie-consent__text { flex: 0 0 auto; }
+    .cookie-consent__actions .btn { flex: 1 1 auto; }
+    .cookie-consent { padding: 12px 16px; }
+    .cookie-consent__text p { font-size: .85rem; }
+  }
+</style>
+
+<script>
+(function () {
+  'use strict';
+  var STORAGE_KEY = 'cookie-consent-v1';
+  var banner = document.getElementById('cookie-consent');
+  if (!banner) { return; }
+
+  // A browser in private mode, or with site data blocked, throws on access.
+  // Treat that as "no decision recorded" rather than breaking the page.
+  function readChoice() {
+    try { return window.localStorage.getItem(STORAGE_KEY); } catch (e) { return null; }
+  }
+  function saveChoice(value) {
+    try { window.localStorage.setItem(STORAGE_KEY, value); } catch (e) { /* ignore */ }
+  }
+
+  function loadAnalytics() {
+    {% if ANALYTICS_ENABLED %}
+    if (document.querySelector('script[data-analytics]')) { return; }
+    var s = document.createElement('script');
+    s.defer = true;
+    s.setAttribute('data-analytics', '');
+    s.src = '{{ ANALYTICS_SCRIPT_URL|escapejs }}';
+    {% if ANALYTICS_SITE_ID %}
+    s.setAttribute('data-domain', '{{ ANALYTICS_SITE_ID|escapejs }}');
+    {% endif %}
+    document.head.appendChild(s);
+    {% endif %}
+  }
+
+  function hide() {
+    banner.hidden = true;
+  }
+
+  var choice = readChoice();
+  if (choice === 'accepted') {
+    loadAnalytics();
+  } else if (choice !== 'rejected') {
+    banner.hidden = false;
+  }
+
+  var acceptBtn = banner.querySelector('[data-cookie-accept]');
+  if (acceptBtn) {
+    acceptBtn.addEventListener('click', function () {
+      saveChoice('accepted');
+      loadAnalytics();
+      hide();
+    });
+  }
+  banner.querySelector('[data-cookie-reject]').addEventListener('click', function () {
+    saveChoice('rejected');
+    hide();
+  });
+})();
+</script>

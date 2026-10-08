@@ -8,14 +8,14 @@ from django.conf import settings
 
 # Python standard library
 import json
+import math
 import re
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 import logging
-import traceback
 
 # Third-party
-from google import genai
+from detection.groq_client import GroqClient, GroqError
 
 # Local models
 from .models import (
@@ -35,41 +35,6 @@ from .services.farming_advisory import FarmingAdvisory
 # LOGGING
 # ======================================================
 logger = logging.getLogger(__name__)
-
-# ======================================================
-# GEMINI CLIENT INITIALIZATION
-# ======================================================
-_client = None
-_AI_ENABLED = False
-
-def get_gemini_client():
-    """Lazy initialization of Gemini client"""
-    global _client, _AI_ENABLED
-    
-    if _client is None:
-        try:
-            if not settings.GEMINI_API_KEY:
-                logger.warning("GEMINI_API_KEY not set - AI features disabled")
-                _AI_ENABLED = False
-                return None
-                
-            # Initialize client
-            _client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            _AI_ENABLED = True
-            logger.info("Gemini client initialized successfully")
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize Gemini client: {e}")
-            _AI_ENABLED = False
-            _client = None
-    
-    return _client
-
-def is_ai_enabled():
-    """Check if AI features are available"""
-    global _AI_ENABLED
-    get_gemini_client()  # Ensure client is initialized
-    return _AI_ENABLED
 
 # ======================================================
 # CONSTANTS & VALIDATION HELPERS
@@ -180,11 +145,11 @@ def get_agro_climatic_zone(lat: float, lon: float) -> Dict:
         'states': 'Central India'
     }
 
-def build_gemini_prompt(lat: float, lon: float, season: str) -> str:
-    """Build zone-based prompt for Gemini AI with authoritative context"""
+def build_crop_map_prompt(lat: float, lon: float, season: str) -> str:
+    """Build a grounded Crop Map prompt for Groq."""
     zone = get_agro_climatic_zone(lat, lon)
     
-    return f"""You are an expert agricultural advisory AI for India.
+    return f"""You are an agricultural advisory assistant for India.
 This request belongs to a FIXED agro-climatic zone.
 These zone facts are authoritative and MUST be followed.
 
@@ -202,32 +167,27 @@ LOCATION:
 - Country: India
 
 CRITICAL RULES (DO NOT VIOLATE):
-- Recommend crops ONLY from the given agro-climatic zone
+- Recommend crops ONLY using names from the given agro-climatic zone list
 - Do NOT repeat crop sets from other zones
-- Output MUST change for different zones
-- All values are AI-estimated
-- Do NOT mention AI, APIs, satellites, or uncertainty disclaimers
+- Soil values are estimates, not verified soil-test results.
+- Provide practical guidance, and advise field observation or soil testing where
+  measurements are needed.
 - Respond ONLY with valid JSON
 - No markdown
 - No explanations
 - No text before or after JSON
 
 TASKS:
-1. Estimate realistic farming weather for this zone
-2. Estimate soil properties consistent with this zone's dominant soil type
-3. Recommend 4–5 crops commonly grown in this zone (from the list above)
-4. Suitability must be between 55 and 95
-5. Provide short, practical, farmer-usable tips
+1. Estimate likely soil properties consistent with this zone's dominant soil
+   type, clearly treating them as estimates.
+2. Recommend 3–4 crops commonly grown in this zone (from the list above)
+3. Suitability must be between 55 and 95
+4. Provide short, practical, farmer-usable tips
+5. Give organic_matter and moisture as numeric percentages without a % sign,
+   pH as a numeric value or range, and each NPK value as Low, Medium, or High.
 
 JSON FORMAT (STRICT):
 {{
-  "weather": {{
-    "temperature": 0,
-    "humidity": 0,
-    "wind_speed": 0,
-    "air_quality": "Good",
-    "recommendations": []
-  }},
   "soil": {{
     "texture": "",
     "organic_matter": "",
@@ -250,6 +210,168 @@ JSON FORMAT (STRICT):
 }}
 
 RESPOND WITH JSON ONLY."""
+
+
+def parse_crop_map_response(response_text: str, allowed_crops: List[str]) -> Dict:
+    """Parse and validate the JSON structure returned by the Crop Map model."""
+    cleaned_text = response_text.strip()
+    cleaned_text = re.sub(r'^```(?:json)?\s*|\s*```$', '', cleaned_text, flags=re.IGNORECASE)
+    try:
+        data = json.loads(cleaned_text)
+    except json.JSONDecodeError:
+        json_match = re.search(r'\{.*\}', cleaned_text, re.DOTALL)
+        if not json_match:
+            raise ValueError("Groq response did not contain JSON")
+        data = json.loads(json_match.group())
+
+    if not isinstance(data, dict):
+        raise ValueError("Groq response must be a JSON object")
+
+    soil = data.get('soil')
+    crops = data.get('crops')
+    if not isinstance(soil, dict):
+        raise ValueError("Groq response is missing soil data")
+    if not isinstance(crops, list) or not 3 <= len(crops) <= 4:
+        raise ValueError("Groq response must include 3 to 4 crop recommendations")
+    allowed_crop_names = {
+        crop.strip().casefold(): crop.strip()
+        for crop in allowed_crops
+        if crop.strip()
+    }
+    if not allowed_crop_names:
+        raise ValueError("No crops are configured for the detected zone")
+
+    for key in ('texture', 'organic_matter', 'moisture', 'ph'):
+        value = soil.get(key)
+        if key == 'texture':
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("Groq response has incomplete soil estimates")
+            soil[key] = value.strip()[:100]
+        elif isinstance(value, bool) or not isinstance(value, (str, int, float)):
+            raise ValueError("Groq response has incomplete soil estimates")
+        elif isinstance(value, (int, float)):
+            if not math.isfinite(value):
+                raise ValueError("Groq response has invalid soil estimates")
+            soil[key] = str(value)
+        elif not value.strip():
+            raise ValueError("Groq response has incomplete soil estimates")
+        else:
+            soil[key] = value.strip()[:100]
+    for key, maximum in (('organic_matter', 20), ('moisture', 100)):
+        estimate = soil[key]
+        if not re.fullmatch(r'\d{1,3}(?:\.\d{1,2})?', estimate):
+            raise ValueError("Groq response has invalid soil percentage estimates")
+        if not 0 <= float(estimate) <= maximum:
+            raise ValueError("Groq response has out-of-range soil percentage estimates")
+    ph_values = re.fullmatch(
+        r'(\d{1,2}(?:\.\d)?)\s*(?:[-–]\s*(\d{1,2}(?:\.\d)?))?',
+        soil['ph'],
+    )
+    if not ph_values or any(float(value) > 14 for value in ph_values.groups() if value):
+        raise ValueError("Groq response has invalid soil pH estimate")
+    npk = soil.get('npk')
+    if not isinstance(npk, dict) or any(
+        not isinstance(npk.get(key), str)
+        or npk[key].strip() not in ('Low', 'Medium', 'High')
+        for key in ('nitrogen', 'phosphorus', 'potassium')
+    ):
+        raise ValueError("Groq response has invalid NPK estimates")
+    soil['npk'] = {
+        key: npk[key].strip()
+        for key in ('nitrogen', 'phosphorus', 'potassium')
+    }
+    soil['recommendations'] = _validated_text_list(
+        soil.get('recommendations'), 'soil recommendations', 1, 5
+    )
+
+    validated_crops = []
+    for crop in crops:
+        if not isinstance(crop, dict):
+            raise ValueError("Groq response has an invalid crop recommendation")
+        name = crop.get('name')
+        suitability = crop.get('suitability')
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError("Groq response has a crop without a name")
+        canonical_name = allowed_crop_names.get(name.strip().casefold())
+        if canonical_name is None:
+            raise ValueError("Groq response recommended a crop outside the zone list")
+        if (
+            isinstance(suitability, bool)
+            or not isinstance(suitability, (int, float))
+            or not math.isfinite(suitability)
+        ):
+            raise ValueError("Groq response has invalid crop suitability")
+        if not 55 <= suitability <= 95:
+            raise ValueError("Groq response has out-of-range crop suitability")
+        validated_crops.append({
+            'name': canonical_name,
+            'suitability': round(suitability),
+            'tips': _validated_text_list(crop.get('tips'), 'crop tips', 1, 5),
+        })
+    data['crops'] = validated_crops
+    data['soil'] = soil
+    return data
+
+
+def build_crop_map_weather(current: Dict) -> Dict:
+    """Format observed current conditions returned by OpenWeatherMap."""
+    try:
+        current_conditions = current['main']
+        wind = current['wind']
+        condition = current['weather'][0]
+        temperature = current_conditions['temp']
+        humidity = current_conditions['humidity']
+        wind_speed = wind['speed']
+        description = condition['description']
+        condition_main = condition['main']
+    except (KeyError, IndexError, TypeError) as exc:
+        raise ValueError("OpenWeatherMap returned incomplete current weather") from exc
+
+    numeric_values = (temperature, humidity, wind_speed)
+    if any(
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+        for value in numeric_values
+    ):
+        raise ValueError("OpenWeatherMap returned invalid current weather values")
+    if not -100 <= temperature <= 70 or not 0 <= humidity <= 100 or wind_speed < 0:
+        raise ValueError("OpenWeatherMap returned out-of-range current weather values")
+    if (
+        not isinstance(description, str)
+        or not description.strip()
+        or not isinstance(condition_main, str)
+    ):
+        raise ValueError("OpenWeatherMap returned no weather description")
+
+    recommendations = []
+    if temperature >= 35:
+        recommendations.append("Schedule field work and irrigation during cooler hours.")
+    if humidity >= 85:
+        recommendations.append("Check crops for signs of moisture-related fungal disease.")
+    if wind_speed >= 8:
+        recommendations.append("Avoid spraying during strong winds to reduce spray drift.")
+    if condition_main.casefold() in ('rain', 'drizzle', 'thunderstorm'):
+        recommendations.append("Check fields for waterlogging and postpone irrigation.")
+    if not recommendations:
+        recommendations.append("Check field soil moisture before deciding whether to irrigate.")
+
+    return {
+        'temperature': round(temperature, 1),
+        'humidity': humidity,
+        'wind_speed': round(wind_speed * 3.6, 1),
+        'description': description.strip().capitalize(),
+        'recommendations': recommendations,
+        'source': 'OpenWeatherMap',
+    }
+
+
+def _validated_text_list(value, label: str, minimum: int, maximum: int) -> List[str]:
+    if not isinstance(value, list) or not minimum <= len(value) <= maximum:
+        raise ValueError("Groq response has invalid {0}".format(label))
+    if any(not isinstance(item, str) or not item.strip() for item in value):
+        raise ValueError("Groq response has invalid {0}".format(label))
+    return [item.strip()[:300] for item in value]
 
 # ======================================================
 # HOME PAGE
@@ -308,7 +430,7 @@ def crop_detail(request, id):
     return render(request, 'features/crop_detail.html', {'crop': crop})
 
 # ======================================================
-# CROP MAP WITH ZONE-BASED AI
+# CROP MAP WITH ZONE-BASED GROQ AI
 # ======================================================
 def crop_map(request):
     """Render the crop map page"""
@@ -317,7 +439,7 @@ def crop_map(request):
 @require_http_methods(["GET"])
 def crop_map_analyze(request):
     """
-    Analyze location using zone-based Gemini AI
+    Analyze location using zone-based Groq AI
     Returns weather, soil, and crop recommendations
     """
     logger.debug("crop_map_analyze called")
@@ -357,248 +479,68 @@ def crop_map_analyze(request):
         # Determine agro-climatic zone
         zone = get_agro_climatic_zone(lat, lon)
         logger.info(f"Detected zone: {zone['name']} (Soil: {zone['soil']}, Rainfall: {zone['rainfall']})")
-        
-        # Check if AI is available
-        if not is_ai_enabled():
-            logger.warning("AI service not available - returning demo data")
+
+        current_weather = WeatherService().get_current_weather(lat, lon)
+        if current_weather is None:
+            logger.error("OpenWeatherMap returned no current weather for lat=%s, lon=%s", lat, lon)
             return JsonResponse({
-                'success': True,
-                'demo_mode': True,
-                'message': 'Running in demo mode. Set GEMINI_API_KEY in .env for AI analysis.',
-                'location': {
-                    'lat': lat,
-                    'lon': lon,
-                    'season': season,
-                    'zone': zone['name'],
-                    'zone_details': {
-                        'soil_type': zone['soil'],
-                        'rainfall': zone['rainfall'],
-                        'states': zone['states']
-                    }
-                },
-                'weather': {
-                    'temperature': 28,
-                    'humidity': 65,
-                    'wind_speed': 12,
-                    'air_quality': 'Good',
-                    'recommendations': [
-                        'DEMO MODE: Set GEMINI_API_KEY for real AI weather analysis.',
-                        'Current data is sample data for demonstration.'
-                    ]
-                },
-                'soil': {
-                    'texture': zone['soil'],
-                    'organic_matter': '2.5',
-                    'moisture': '50',
-                    'ph': '6.8-7.2',
-                    'npk': {'nitrogen': 'Medium', 'phosphorus': 'Medium', 'potassium': 'Medium'},
-                    'recommendations': [
-                        'DEMO MODE: Soil analysis requires GEMINI_API_KEY.',
-                        'Conduct actual soil test for accurate results.'
-                    ]
-                },
-                'crops': [
-                    {
-                        'name': zone['crops'].split(',')[0].strip(),
-                        'suitability': 75,
-                        'tips': [
-                            'DEMO DATA: Real recommendations need GEMINI_API_KEY.',
-                            f'Common in {zone["name"]} region.'
-                        ]
-                    },
-                    {
-                        'name': zone['crops'].split(',')[1].strip() if len(zone['crops'].split(',')) > 1 else 'Rice',
-                        'suitability': 70,
-                        'tips': [
-                            'DEMO DATA: Real recommendations need GEMINI_API_KEY.',
-                            'Suitable for local conditions.'
-                        ]
-                    },
-                    {
-                        'name': zone['crops'].split(',')[2].strip() if len(zone['crops'].split(',')) > 2 else 'Maize',
-                        'suitability': 80,
-                        'tips': [
-                            'DEMO DATA: Real recommendations need GEMINI_API_KEY.',
-                            'Well adapted to this zone.'
-                        ]
-                    }
-                ]
-            })
-        
-        # Build Gemini prompt with zone context
-        prompt = build_gemini_prompt(lat, lon, season)
-        logger.debug(f"Prompt built (length: {len(prompt)})")
-        
+                'success': False,
+                'error': 'Live weather is unavailable. Check the weather API configuration and try again.',
+            }, status=503)
         try:
-            # Get Gemini client
-            client = get_gemini_client()
-            if not client:
-                raise ValueError("Gemini client not available")
-            
-            # Call Gemini API
-            logger.info(f"Calling Gemini API for lat={lat}, lon={lon}, zone={zone['name']}")
-            response = client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=prompt
+            weather_data = build_crop_map_weather(current_weather)
+        except ValueError as e:
+            logger.warning("OpenWeatherMap returned invalid current weather: %s", e)
+            return JsonResponse({
+                'success': False,
+                'error': 'The weather service returned invalid data. Please try again.',
+            }, status=502)
+        
+        if not settings.GROQ_API_KEY:
+            logger.error("Crop Map analysis requested but GROQ_API_KEY is not configured")
+            return JsonResponse({
+                'success': False,
+                'error': 'Crop Map AI is not configured. Please contact the site administrator.',
+            }, status=503)
+
+        prompt = build_crop_map_prompt(lat, lon, season)
+        groq = GroqClient(
+            api_key=settings.GROQ_API_KEY,
+            base_url=settings.GROQ_BASE_URL,
+            timeout=settings.GROQ_TIMEOUT,
+            text_model=settings.GROQ_TEXT_MODEL,
+        )
+        logger.info(
+            "Requesting Crop Map analysis from Groq for zone=%s", zone['name']
+        )
+        system_prompt = (
+            "You are a careful agricultural advisor. Follow the supplied "
+            "regional facts, distinguish soil estimates from measurements, and "
+            "return only valid JSON matching the requested schema."
+        )
+        for attempt in range(2):
+            response_text, model_used, _ = groq.complete(
+                system_prompt=system_prompt,
+                user_prompt=prompt,
+                temperature=0.2,
+                max_tokens=1800,
+                json_mode=True,
             )
-            
-            if not response or not response.text:
-                raise ValueError("Empty response from AI service")
-                
-            response_text = response.text
-            logger.debug(f"Got Gemini response (length: {len(response_text)})")
-            
-        except Exception as e:
-            logger.error(f"Gemini API call failed: {str(e)}")
-            logger.error(traceback.format_exc())
-            
-            # Return fallback data with zone info
-            return JsonResponse({
-                'success': True,
-                'ai_fallback': True,
-                'location': {
-                    'lat': lat,
-                    'lon': lon,
-                    'season': season,
-                    'zone': zone['name'],
-                    'zone_details': {
-                        'soil_type': zone['soil'],
-                        'rainfall': zone['rainfall'],
-                        'states': zone['states']
-                    }
-                },
-                'weather': {
-                    'temperature': 28,
-                    'humidity': 65,
-                    'wind_speed': 12,
-                    'air_quality': 'Good',
-                    'recommendations': [
-                        'AI service temporarily unavailable. Using sample data.',
-                        'Monitor local weather forecasts for accurate updates.'
-                    ]
-                },
-                'soil': {
-                    'texture': zone['soil'],
-                    'organic_matter': '2.5',
-                    'moisture': '50',
-                    'ph': '6.8-7.2',
-                    'npk': {'nitrogen': 'Medium', 'phosphorus': 'Medium', 'potassium': 'Medium'},
-                    'recommendations': [
-                        'AI analysis unavailable. Conduct soil test for accurate results.',
-                        f'Typical soil type for {zone["name"]}: {zone["soil"]}'
-                    ]
-                },
-                'crops': [
-                    {
-                        'name': zone['crops'].split(',')[0].strip(),
-                        'suitability': 75,
-                        'tips': [
-                            'Sample data only - AI service unavailable.',
-                            f'Common crop in {zone["name"]} region.',
-                        ]
-                    },
-                    {
-                        'name': zone['crops'].split(',')[1].strip() if len(zone['crops'].split(',')) > 1 else 'Rice',
-                        'suitability': 70,
-                        'tips': [
-                            'Sample data only - AI service unavailable.',
-                            'Suitable for local agro-climatic conditions.',
-                        ]
-                    },
-                    {
-                        'name': zone['crops'].split(',')[2].strip() if len(zone['crops'].split(',')) > 2 else 'Maize',
-                        'suitability': 80,
-                        'tips': [
-                            'Sample data only - AI service unavailable.',
-                            'Well adapted to this zone.',
-                        ]
-                    }
-                ]
-            })
-        
-        # Parse JSON response
-        try:
-            ai_data = None
-            
-            # Try direct JSON parsing first
             try:
-                ai_data = json.loads(response_text)
-                logger.debug("Successfully parsed JSON directly")
-            except json.JSONDecodeError as e:
-                logger.debug(f"Direct JSON parse failed, trying cleanup: {e}")
-                
-                # Clean the response text
-                cleaned_text = response_text.strip()
-                cleaned_text = re.sub(r'```json\s*', '', cleaned_text)
-                cleaned_text = re.sub(r'\s*```', '', cleaned_text)
-                
-                # Try to find JSON object
-                json_match = re.search(r'\{.*\}', cleaned_text, re.DOTALL)
-                if json_match:
-                    json_str = json_match.group()
-                    logger.debug("Found JSON in text")
-                    ai_data = json.loads(json_str)
-                else:
-                    logger.error("No JSON found in response")
-                    raise ValueError("No valid JSON found in AI response")
-            
-            # Validate AI response
-            if not ai_data:
-                logger.error("ai_data is None after parsing")
-                raise ValueError("Failed to parse AI response")
-                
-            # Ensure required fields exist
-            if 'weather' not in ai_data:
-                ai_data['weather'] = {}
-            if 'soil' not in ai_data:
-                ai_data['soil'] = {}
-            if 'crops' not in ai_data:
-                ai_data['crops'] = []
-            
-            logger.debug("AI data parsed successfully")
-            
-        except Exception as e:
-            logger.error(f"Failed to parse AI response: {str(e)}")
-            logger.error(f"Raw response (first 500 chars): {response_text[:500]}")
-            
-            # Return fallback data
-            return JsonResponse({
-                'success': True,
-                'parse_fallback': True,
-                'location': {
-                    'lat': lat,
-                    'lon': lon,
-                    'season': season,
-                    'zone': zone['name'],
-                    'zone_details': {
-                        'soil_type': zone['soil'],
-                        'rainfall': zone['rainfall'],
-                        'states': zone['states']
-                    }
-                },
-                'weather': {
-                    'temperature': 25,
-                    'humidity': 60,
-                    'wind_speed': 10,
-                    'air_quality': 'Moderate',
-                    'recommendations': ['AI response parsing failed.']
-                },
-                'soil': {
-                    'texture': zone['soil'],
-                    'organic_matter': '2.0',
-                    'moisture': '45',
-                    'ph': '6.5-7.5',
-                    'npk': {'nitrogen': 'Medium', 'phosphorus': 'Medium', 'potassium': 'Medium'},
-                    'recommendations': ['Soil analysis data unavailable.']
-                },
-                'crops': [
-                    {
-                        'name': 'General Farming',
-                        'suitability': 50,
-                        'tips': ['AI crop recommendations temporarily unavailable.']
-                    }
-                ]
-            })
+                ai_data = parse_crop_map_response(
+                    response_text, zone['crops'].split(',')
+                )
+                break
+            except ValueError as e:
+                if attempt == 1:
+                    logger.warning("Groq returned invalid Crop Map data: %s", e)
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Crop Map AI returned an invalid result. Please try again.',
+                    }, status=502)
+                logger.warning(
+                    "Groq returned invalid Crop Map data; retrying once: %s", e
+                )
         
         # Return successful response with zone info
         response_data = {
@@ -614,17 +556,24 @@ def crop_map_analyze(request):
                     'states': zone['states']
                 }
             },
-            'weather': ai_data.get('weather', {}),
+            'weather': weather_data,
             'soil': ai_data.get('soil', {}),
-            'crops': ai_data.get('crops', [])
+            'crops': ai_data.get('crops', []),
+            'provider': 'Groq',
+            'model': model_used,
         }
         
         logger.info(f"Successfully returned AI analysis for lat={lat}, lon={lon}, zone={zone['name']}")
         return JsonResponse(response_data)
         
-    except Exception as e:
-        logger.error(f"Unhandled error in crop_map_analyze: {str(e)}")
-        logger.error(traceback.format_exc())
+    except GroqError:
+        logger.exception("Groq Crop Map analysis failed")
+        return JsonResponse({
+            'success': False,
+            'error': 'Crop Map AI is temporarily unavailable. Please try again shortly.',
+        }, status=503)
+    except Exception:
+        logger.exception("Unhandled error in crop_map_analyze")
         return JsonResponse({
             'success': False,
             'error': 'Internal server error. Please try again later.'

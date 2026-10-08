@@ -42,10 +42,10 @@
                     {% if product.images.all %}
                     <div class="thumbnail-gallery d-flex gap-2 overflow-auto">
                         {% if product.image %}
-                        <img src="{{ product.image.url }}" class="img-thumbnail border-primary" style="width: 80px; height: 80px; object-fit: cover; cursor: pointer;">
+                        <img src="{{ product.image.url }}" alt="{{ product.name }} - main view" class="img-thumbnail border-primary" style="width: 80px; height: 80px; object-fit: cover; cursor: pointer;">
                         {% endif %}
                         {% for img in product.images.all %}
-                        <img src="{{ img.image.url }}" class="img-thumbnail" style="width: 80px; height: 80px; object-fit: cover; cursor: pointer;">
+                        <img src="{{ img.image.url }}" alt="{{ product.name }} - view {{ forloop.counter|add:1 }}" class="img-thumbnail" style="width: 80px; height: 80px; object-fit: cover; cursor: pointer;">
                         {% endfor %}
                     </div>
                     {% endif %}

@@ -1,0 +1,180 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Privacy Policy — AI Crop Health{% endblock %}
+{% block meta_description %}How AI Crop Health collects, uses and protects your personal data, crop photographs, identity documents and field sensor readings.{% endblock %}
+{% block meta_keywords %}privacy policy, data protection, AI Crop Health, farmer data{% endblock %}
+
+{% block content %}
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Privacy Policy</h1>
+    <p>How we handle your data</p>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li class="current" aria-current="page">Privacy Policy</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+
+<section class="section">
+  <div class="container" style="max-width: 860px;">
+
+    <div class="alert alert-info" role="alert">
+      This policy is generated from the company details configured for this
+      deployment. India's Digital Personal Data Protection Act 2023 applies to
+      this service; have a qualified lawyer review this text before relying on
+      it. It is not legal advice.
+    </div>
+
+    <p class="text-muted">Last updated: {{ company.policy_updated }}</p>
+
+    <h2 class="h4 mt-4">1. Who we are</h2>
+    <p>
+      {{ company.short_name }} ("we", "us") is operated by
+      <strong>{{ company.name }}</strong>, {{ company.address }}. For any question
+      about this policy or your data, including access, correction or deletion,
+      contact us at <strong>{{ company.email }}</strong>.
+    </p>
+
+    <h2 class="h4 mt-4">2. What we collect</h2>
+    <p>We only collect what the service needs to work.</p>
+    <div class="table-responsive">
+      <table class="table table-bordered align-middle">
+        <thead class="table-light">
+          <tr><th scope="col">Data</th><th scope="col">Why</th><th scope="col">When</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Name, mobile number, email</td>
+            <td>To create your account and send one-time login codes</td>
+            <td>At registration</td>
+          </tr>
+          <tr>
+            <td>Crop and leaf photographs</td>
+            <td>To run disease diagnosis and show you your own history</td>
+            <td>Each time you scan</td>
+          </tr>
+          <tr>
+            <td>Identity documents (government ID, address proof, ownership proof, selfie)</td>
+            <td>To verify land owners and farmers so leases are trustworthy</td>
+            <td>Only if you apply for verification</td>
+          </tr>
+          <tr>
+            <td>Land details and GPS coordinates</td>
+            <td>To list land for lease and locate your monitored fields</td>
+            <td>When you add land or a field</td>
+          </tr>
+          <tr>
+            <td>Sensor readings (soil moisture, N-P-K, pH, temperature, humidity)</td>
+            <td>To show field dashboards, raise alerts and control irrigation</td>
+            <td>Continuously, from your registered devices</td>
+          </tr>
+          <tr>
+            <td>IP address and session identifier</td>
+            <td>Security, abuse prevention and diagnostic logs</td>
+            <td>On each request</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="h4 mt-4">3. Third parties who process your data</h2>
+    <p>
+      To provide some features we send data to these services. We do not sell your
+      data to anyone, and we do not share it for advertising.
+    </p>
+    <ul>
+      <li>
+        <strong>Image analysis providers</strong> — the <em>photograph</em> you
+        upload is processed by specialist third-party AI services to identify crop
+        disease and insects and to answer your follow-up questions. Some of these
+        providers operate servers outside India. We send only the photograph and
+        the resulting diagnosis: <strong>never your name, phone number, email
+        address, account details or location</strong>, and location metadata is
+        removed from the image before it is sent.
+      </li>
+      <li>
+        <strong>Weather data provider</strong> — receives an approximate location
+        to return a forecast. No identity details are sent.
+      </li>
+      <li>
+        <strong>Email delivery provider</strong> — delivers login codes and
+        notifications to your email address. We do not send login codes by SMS.
+      </li>
+      <li><strong>{{ company.hosting_provider }}</strong> — stores the database and uploaded files.</li>
+    </ul>
+
+    <h2 class="h4 mt-4">4. How long we keep it</h2>
+    <ul>
+      <li><strong>Account details</strong> — while your account is open, then deleted within [30] days of closure.</li>
+      <li><strong>Diagnosis photographs</strong> — [12] months, so you can review your crop history.</li>
+      <li><strong>Identity documents</strong> — [24] months after verification, then deleted.</li>
+      <li><strong>Sensor readings</strong> — [24] months, for season-on-season comparison.</li>
+      <li><strong>Lease agreements</strong> — as long as the law requires us to keep contract records.</li>
+    </ul>
+
+    <h2 class="h4 mt-4">5. Your rights</h2>
+    <p>You can ask us to:</p>
+    <ul>
+      <li>show you the data we hold about you;</li>
+      <li>correct anything that is wrong;</li>
+      <li>delete your account and personal data;</li>
+      <li>stop using your data for a particular purpose;</li>
+      <li>send your data to you in a portable form.</li>
+    </ul>
+    <p>Email <strong>{{ company.email }}</strong> and we will respond within 30 days.</p>
+
+    <h2 class="h4 mt-4">6. How we protect your data</h2>
+    <ul>
+      <li>All traffic is encrypted with HTTPS.</li>
+      <li>Login uses one-time codes, so there is no password for us to lose.</li>
+      <li>Each sensor device has its own key, so one compromised device cannot affect another farmer's field.</li>
+      <li>Identity documents are not reachable by search engines.</li>
+      <li>Access to verification documents is limited to staff who review them.</li>
+    </ul>
+    <p>
+      No system is perfectly secure. If a breach affects your data we will tell you
+      and the relevant authority as the law requires.
+    </p>
+
+    <h2 class="h4 mt-4">7. Cookies</h2>
+    <p>
+      We use a small number of strictly necessary cookies to keep you signed in and
+      to protect forms against cross-site request forgery. These cannot be switched
+      off without breaking the site. Anything optional, such as analytics, is only
+      set after you agree to it in the cookie banner, and you can change your mind
+      at any time.
+    </p>
+
+    <h2 class="h4 mt-4">8. Children</h2>
+    <p>
+      This service is for adults carrying out agricultural work. We do not knowingly
+      collect data from anyone under 18.
+    </p>
+
+    <h2 class="h4 mt-4">9. Automated decisions, and their limits</h2>
+    <p>
+      Disease diagnosis is produced by a machine-learning model. <strong>It is
+      advisory and can be wrong.</strong> Its accuracy has not been independently
+      measured. Always confirm with a qualified agronomist or your local
+      agricultural extension officer before spending money on treatment or
+      destroying a crop. No automated decision here legally binds you.
+    </p>
+
+    <h2 class="h4 mt-4">10. Changes to this policy</h2>
+    <p>
+      If we change this policy we will update the date above and, for significant
+      changes, tell you in the app or by email.
+    </p>
+
+    <hr class="my-4">
+    <p class="mb-0">
+      See also our <a href="{% url 'core:terms_and_conditions' %}">Terms &amp; Conditions</a>.
+    </p>
+
+  </div>
+</section>
+{% endblock %}

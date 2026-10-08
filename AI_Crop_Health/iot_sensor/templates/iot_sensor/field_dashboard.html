@@ -1,0 +1,115 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+{% block title %}My Fields — IoT Dashboard{% endblock %}
+{% block content %}
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Field Management Dashboard</h1>
+    <p>Multi-field, multi-crop centralized monitoring</p>
+  </div>
+</div>
+
+<section class="section">
+<div class="container iot-field-dashboard">
+
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="alert alert-info mb-4" role="status">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Stats Row -->
+  <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-4 g-3 mb-4">
+    <div class="col">
+      <div class="card iot-summary-card h-100 border-0 shadow-sm">
+        <div class="card-body d-flex align-items-center gap-3">
+          <span class="iot-summary-icon iot-summary-icon-fields"><i class="bi bi-map-fill" aria-hidden="true"></i></span>
+          <div><p class="iot-summary-label">Total Fields</p><p class="iot-summary-value">{{ total_fields }}</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card iot-summary-card h-100 border-0 shadow-sm">
+        <div class="card-body d-flex align-items-center gap-3">
+          <span class="iot-summary-icon iot-summary-icon-alerts"><i class="bi bi-bell-fill" aria-hidden="true"></i></span>
+          <div><p class="iot-summary-label">Unread Alerts</p><p class="iot-summary-value text-danger">{{ total_alerts }}</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card iot-summary-card h-100 border-0 shadow-sm">
+        <div class="card-body d-flex align-items-center gap-3">
+          <span class="iot-summary-icon iot-summary-icon-nodes"><i class="bi bi-broadcast-pin" aria-hidden="true"></i></span>
+          <div><p class="iot-summary-label">Active Nodes</p><p class="iot-summary-value">{{ total_active_nodes }}</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card iot-summary-card h-100 border-0 shadow-sm">
+        <div class="card-body d-flex align-items-center gap-3">
+          <span class="iot-summary-icon iot-summary-icon-irrigation"><i class="bi bi-droplet-fill" aria-hidden="true"></i></span>
+          <div><p class="iot-summary-label">Auto-Irrigation</p><p class="iot-summary-value text-primary">AI Active</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Links -->
+  <div class="d-flex flex-wrap gap-2 mb-4">
+    <a href="{% url 'iot_sensor:alert_dashboard' %}" class="btn btn-outline-danger"><i class="bi bi-bell me-2" aria-hidden="true"></i>View All Alerts</a>
+    <a href="{% url 'iot_sensor:metrics_dashboard' %}" class="btn btn-outline-secondary"><i class="bi bi-bar-chart-line me-2" aria-hidden="true"></i>Evaluation Metrics</a>
+  </div>
+
+  <!-- Field Cards -->
+  {% if field_data %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+      {% for fd in field_data %}
+      <div class="col">
+        <article class="card iot-field-card h-100 border-0 shadow-sm">
+          <div class="card-header iot-field-card-header">
+            <h2 class="h5 mb-1">{{ fd.field.name }}</h2>
+            <p class="mb-0"><i class="bi bi-geo-alt me-1" aria-hidden="true"></i>{{ fd.field.location }}</p>
+          </div>
+          <div class="card-body d-flex flex-column p-4">
+            <div class="row row-cols-2 g-2 mb-3">
+              <div class="col"><div class="iot-field-fact"><span>Crop</span><strong>{{ fd.field.current_crop|default:"—" }}</strong></div></div>
+              <div class="col"><div class="iot-field-fact"><span>Stage</span><strong>{{ fd.field.get_lifecycle_stage_display }}</strong></div></div>
+              <div class="col"><div class="iot-field-fact"><span>Size</span><strong>{{ fd.field.size_acres }} acres</strong></div></div>
+              <div class="col"><div class="iot-field-fact"><span>Active nodes</span><strong>{{ fd.node_count }}</strong></div></div>
+            </div>
+
+          {% if fd.latest %}
+            <div class="iot-reading-panel mb-3">
+              <p class="iot-reading-title"><i class="bi bi-activity me-1" aria-hidden="true"></i>Latest Reading <span>{{ fd.latest.recorded_at|date:"d M, H:i" }}</span></p>
+              <div class="row row-cols-3 g-2 text-center">
+                <div class="col"><span class="iot-reading-label">Moisture</span><strong class="{% if fd.latest.soil_moisture_pct and fd.latest.soil_moisture_pct < 30 %}text-danger{% else %}text-success{% endif %}">{{ fd.latest.soil_moisture_pct|default:"—" }}%</strong></div>
+                <div class="col"><span class="iot-reading-label">Temperature</span><strong>{{ fd.latest.temperature_c|default:"—" }}°C</strong></div>
+                <div class="col"><span class="iot-reading-label">Humidity</span><strong>{{ fd.latest.humidity_pct|default:"—" }}%</strong></div>
+              </div>
+            </div>
+          {% else %}
+            <p class="iot-no-reading mb-3"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>No sensor data yet</p>
+          {% endif %}
+
+          {% if fd.unread_alerts %}
+            <p class="alert alert-danger py-2 mb-3"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>{{ fd.unread_alerts }} unread alert{{ fd.unread_alerts|pluralize }}</p>
+          {% endif %}
+
+            <a href="{% url 'iot_sensor:field_detail' fd.field.id %}" class="btn btn-success w-100 mt-auto">View Field <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></a>
+          </div>
+        </article>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="iot-empty-state text-center p-5 bg-white rounded shadow-sm">
+      <span class="iot-empty-icon"><i class="bi bi-geo-alt" aria-hidden="true"></i></span>
+      <h2 class="h4">No fields set up yet</h2>
+      <p class="text-muted mb-4">Add a field to start monitoring sensor readings and alerts.</p>
+      <a href="{% url 'iot_sensor:field_create' %}" class="btn btn-success"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Field</a>
+    </div>
+  {% endif %}
+
+</div>
+</section>
+{% endblock %}

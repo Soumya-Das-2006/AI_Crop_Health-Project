@@ -1,0 +1,192 @@
+#topbar .language-select {
+  width: 110px;
+  min-width: 110px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+#topbar .language-select option {
+  color: #111;
+}
+
+#topbar .topbar-icon-link {
+  display: inline-flex;
+  width: auto;
+  min-width: 32px;
+  height: 32px;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border-radius: 6px;
+  color: #f8f9fa;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+#topbar .topbar-icon-link:hover,
+#topbar .topbar-icon-link:focus-visible {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+#topbar .topbar-icon-link i {
+  font-size: 15px;
+}
+
+#topbar .bi-globe2 {
+  width: 18px;
+  height: 26px;
+  font-size: 18px;
+  line-height: 26px;
+}
+
+.mobile-language-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-right: 12px;
+}
+
+.mobile-language-trigger {
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-language-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.mobile-language-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 240px;
+  max-height: 360px;
+  overflow-y: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #122f22;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.2);
+  padding: 10px;
+  display: none;
+  z-index: 1300;
+}
+
+.mobile-language-menu.show {
+  display: block;
+}
+
+.mobile-language-header {
+  color: #d6f3df;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.mobile-language-option,
+.mobile-tts-btn {
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.mobile-language-option.active {
+  background: #1f6848;
+}
+
+.mobile-tts-btn {
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+
+.translation-loading {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  background: #123524;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 30px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+}
+
+.translation-loading.show {
+  display: inline-flex;
+}
+
+@media (max-width: 1199.98px) {
+  #topbar {
+    display: none;
+  }
+
+  .header .container-fluid {
+    gap: 8px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Topbar link icons                                                   */
+/* ------------------------------------------------------------------ */
+/* Bootstrap's .btn-link adds button padding that spaces the icons too
+   far apart and pushes the row past the language picker on 1280px
+   laptops. These are icons, not buttons. */
+#topbar .topbar-social-link {
+  padding: 0 .35rem;
+  line-height: 1;
+  text-decoration: none;
+  opacity: .85;
+  transition: opacity .15s ease, transform .15s ease;
+}
+
+#topbar .topbar-social-link:hover,
+#topbar .topbar-social-link:focus-visible {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+/* Keyboard users need to see where they are; .btn-link's default outline
+   is invisible against the dark bar. */
+#topbar .topbar-social-link:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, .75);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+#topbar .topbar-social i {
+  font-size: .95rem;
+}
+
+/* Below xl the "Follow Us:" label is hidden, so tighten the group up to
+   leave room for the language picker on smaller laptops. */
+@media (max-width: 1399.98px) {
+  #topbar .topbar-social-link {
+    padding: 0 .25rem;
+  }
+}

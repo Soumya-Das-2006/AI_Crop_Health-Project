@@ -5,7 +5,10 @@ from django.utils.html import format_html
 from django.db.models import Count, Avg, Q, Sum
 from django.utils import timezone
 from datetime import timedelta
+from core.admin_mixins import ExportCsvMixin
+
 from .models import (
+    DetectionHistory,
     DiagnosisLog,
     QualityRejectionLog,
     FarmerFeedback,
@@ -13,6 +16,11 @@ from .models import (
     AgricultureAlert,
     UserReaction,  # ADDED
     APIAccessLog,  # ADDED
+    DiagnosisConversation,
+    DiagnosisMessage,
+    InsectIdentificationLog,
+    ChatSession,
+    ChatMessage,
 )
 from core.admin import AuditModelAdminMixin
 from core.services import AuditService
@@ -1264,3 +1272,402 @@ class APIAccessLogAdmin(admin.ModelAdmin):
         })
         
         return super().changelist_view(request, extra_context=extra_context)
+
+# ======================================================
+# ASK AI ADMIN
+# ======================================================
+
+class DiagnosisMessageInline(admin.TabularInline):
+    """Full thread, read-only, shown inline on the conversation page."""
+
+    model = DiagnosisMessage
+    extra = 0
+    can_delete = False
+    fields = [
+        'created_at', 'role', 'preset', 'content',
+        'treatment_gated', 'latency_ms', 'error', 'flagged_by_admin',
+    ]
+    readonly_fields = [
+        'created_at', 'role', 'preset', 'content',
+        'treatment_gated', 'latency_ms', 'error',
+    ]
+    ordering = ['created_at', 'id']
+
+    def has_add_permission(self, request, obj=None):
+        # Transcripts are evidence of what a farmer was told. Admins review
+        # and flag them; they do not author turns after the fact.
+        return False
+
+
+@admin.register(DiagnosisConversation)
+class DiagnosisConversationAdmin(admin.ModelAdmin):
+    """Audit view of Ask AI threads, anchored to the diagnosed photo."""
+
+    list_display = [
+        'id',
+        'created_at',
+        'image_thumbnail',
+        'diagnosis_summary',
+        'who',
+        'turns',
+        'gated_badge',
+        'error_badge',
+    ]
+    list_filter = [
+        'created_at',
+        'language',
+        'diagnosis_log__diagnosis_status',
+        'diagnosis_log__provider',
+    ]
+    search_fields = [
+        'messages__content',
+        'diagnosis_log__predicted_crop',
+        'diagnosis_log__predicted_disease',
+        'user__username',
+        'session_id',
+    ]
+    date_hierarchy = 'created_at'
+    readonly_fields = ['created_at', 'updated_at', 'diagnosis_log', 'user', 'session_id']
+    inlines = [DiagnosisMessageInline]
+
+    def get_queryset(self, request):
+        return (
+            super().get_queryset(request)
+            .select_related('diagnosis_log', 'user')
+            .prefetch_related('messages')
+        )
+
+    @admin.display(description='Photo')
+    def image_thumbnail(self, obj):
+        image = obj.diagnosis_log.uploaded_image if obj.diagnosis_log else None
+        if not image:
+            return '-'
+        return format_html(
+            '<img src="{}" style="width:56px;height:56px;object-fit:cover;border-radius:4px;" />',
+            image.url,
+        )
+
+    @admin.display(description='Diagnosis')
+    def diagnosis_summary(self, obj):
+        log = obj.diagnosis_log
+        if not log:
+            return '-'
+        return format_html(
+            '{} / {} <span style="color:#888;">({:.0f}% - {})</span>',
+            log.predicted_crop or '?',
+            log.predicted_disease or '?',
+            log.calibrated_confidence or 0,
+            log.diagnosis_status,
+        )
+
+    @admin.display(description='Asked by')
+    def who(self, obj):
+        if obj.user_id:
+            return obj.user.username
+        return format_html('<span style="color:#888;">anon {}</span>', (obj.session_id or '')[:8])
+
+    @admin.display(description='Turns')
+    def turns(self, obj):
+        return obj.messages.count()
+
+    @admin.display(description='Treatment gated')
+    def gated_badge(self, obj):
+        """
+        Whether the safety gate suppressed chemical advice in this thread.
+        This is the column a reviewer checks first: it says whether the farmer
+        was correctly steered to a human instead of to a pesticide shop.
+        """
+        gated = obj.messages.filter(treatment_gated=True).exists()
+        if gated:
+            return format_html('<span style="color:#b36b00;">withheld</span>')
+        return format_html('<span style="color:#1a7f37;">allowed</span>')
+
+    @admin.display(description='Errors')
+    def error_badge(self, obj):
+        count = obj.messages.exclude(error__isnull=True).exclude(error='').count()
+        if not count:
+            return '-'
+        return format_html('<span style="color:#b00020;">{} failed</span>', count)
+
+
+@admin.register(DiagnosisMessage)
+class DiagnosisMessageAdmin(admin.ModelAdmin):
+    """
+    Flat view of every turn, for spotting patterns across conversations -
+    which preset questions farmers actually press, and where answers fail.
+    """
+
+    list_display = [
+        'created_at', 'role', 'preset', 'short_content',
+        'treatment_gated', 'latency_ms', 'has_error', 'flagged_by_admin',
+    ]
+    list_filter = [
+        'role', 'preset', 'treatment_gated', 'flagged_by_admin', 'created_at', 'model_name',
+    ]
+    search_fields = ['content', 'admin_note']
+    date_hierarchy = 'created_at'
+    list_editable = ['flagged_by_admin']
+    readonly_fields = [
+        'conversation', 'role', 'content', 'preset', 'created_at',
+        'model_name', 'latency_ms', 'error', 'treatment_gated',
+    ]
+    actions = ['flag_for_review', 'clear_flag']
+
+    @admin.display(description='Message')
+    def short_content(self, obj):
+        if obj.error:
+            return format_html('<em style="color:#b00020;">failed</em>')
+        return (obj.content[:90] + '...') if len(obj.content) > 90 else obj.content
+
+    @admin.display(description='Error', boolean=True)
+    def has_error(self, obj):
+        return bool(obj.error)
+
+    @admin.action(description='Flag selected messages for expert review')
+    def flag_for_review(self, request, queryset):
+        updated = queryset.update(flagged_by_admin=True)
+        self.message_user(request, f"{updated} message(s) flagged for review.")
+
+    @admin.action(description='Clear review flag')
+    def clear_flag(self, request, queryset):
+        updated = queryset.update(flagged_by_admin=False)
+        self.message_user(request, f"{updated} message(s) unflagged.")
+
+
+@admin.register(DetectionHistory)
+class DetectionHistoryAdmin(ExportCsvMixin, admin.ModelAdmin):
+    """
+    Scans a farmer explicitly saved to their profile.
+
+    Was not registered, so support had no way to see what a farmer had kept
+    when they called about a past diagnosis.
+    """
+
+    list_display = ('saved_at', 'user', 'crop', 'disease', 'confidence', 'short_notes')
+    list_filter = ('saved_at',)
+    search_fields = ('user__username', 'user__email', 'notes',
+                     'diagnosis_log__predicted_crop', 'diagnosis_log__predicted_disease')
+    list_select_related = ('user', 'diagnosis_log')
+    date_hierarchy = 'saved_at'
+    readonly_fields = ('saved_at', 'user', 'diagnosis_log')
+    actions = ('export_as_csv',)
+    csv_export_fields = ('id', 'saved_at', 'notes')
+
+    @admin.display(description='Crop', ordering='diagnosis_log__predicted_crop')
+    def crop(self, obj):
+        return obj.diagnosis_log.predicted_crop
+
+    @admin.display(description='Disease', ordering='diagnosis_log__predicted_disease')
+    def disease(self, obj):
+        return obj.diagnosis_log.predicted_disease
+
+    @admin.display(description='Confidence')
+    def confidence(self, obj):
+        value = obj.diagnosis_log.calibrated_confidence
+        return f'{value:.1f}%' if value is not None else '-'
+
+    @admin.display(description='Notes')
+    def short_notes(self, obj):
+        if not obj.notes:
+            return '-'
+        return (obj.notes[:60] + '...') if len(obj.notes) > 60 else obj.notes
+
+    def has_add_permission(self, request):
+        # Created by farmers from the app, never by staff.
+        return False
+
+
+# ======================================================
+# INSECT IDENTIFICATION ADMIN
+# ======================================================
+
+@admin.register(InsectIdentificationLog)
+class InsectIdentificationLogAdmin(admin.ModelAdmin):
+    """
+    Audit view for insect identifications.
+
+    pest_status is editable here on purpose: insect.id reports danger-to-humans
+    for only about 3.5% of taxa, so the app ships every row as 'unknown'. An
+    agronomist curating this column over time is how a trustworthy pest list
+    gets built - from reviewed real identifications rather than from a guess
+    baked into code.
+    """
+
+    list_display = [
+        'timestamp',
+        'image_thumbnail',
+        'identified_as',
+        'confidence_display',
+        'status_badge',
+        'pest_status',
+        'farmer_confirmed',
+        'admin_reviewed',
+    ]
+    list_filter = [
+        'identification_status',
+        'pest_status',
+        'admin_reviewed',
+        'farmer_confirmed',
+        'timestamp',
+    ]
+    search_fields = ['common_name', 'scientific_name', 'taxon_id', 'correct_identification']
+    date_hierarchy = 'timestamp'
+    list_editable = ['pest_status', 'admin_reviewed']
+    readonly_fields = [
+        'timestamp', 'user', 'session_id', 'user_ip', 'uploaded_image',
+        'image_resolution', 'image_size_kb', 'common_name', 'scientific_name',
+        'taxon_id', 'confidence', 'top_predictions', 'margin', 'entropy_score',
+        'identification_status', 'provider', 'model_version',
+    ]
+
+    @admin.display(description='Photo')
+    def image_thumbnail(self, obj):
+        if not obj.uploaded_image:
+            return '-'
+        return format_html(
+            '<img src="{}" style="width:56px;height:56px;object-fit:cover;border-radius:4px;" />',
+            obj.uploaded_image.url,
+        )
+
+    @admin.display(description='Identified as')
+    def identified_as(self, obj):
+        if not obj.common_name and not obj.scientific_name:
+            return '-'
+        if obj.scientific_name and obj.scientific_name != obj.common_name:
+            return format_html(
+                '{}<br><em style="color:#888;font-size:.85em;">{}</em>',
+                obj.common_name or '-', obj.scientific_name,
+            )
+        return obj.common_name or obj.scientific_name
+
+    @admin.display(description='Confidence')
+    def confidence_display(self, obj):
+        colour = '#1a7f37' if obj.confidence >= 55 else (
+            '#b36b00' if obj.confidence >= 25 else '#b00020'
+        )
+        return format_html(
+            '<span style="color:{};font-weight:600;">{:.1f}%</span>', colour, obj.confidence
+        )
+
+    @admin.display(description='Status')
+    def status_badge(self, obj):
+        colours = {
+            'reliable': '#1a7f37',
+            'caution': '#b36b00',
+            'unreliable': '#b00020',
+            'not_an_insect': '#888',
+        }
+        return format_html(
+            '<span style="color:{};">{}</span>',
+            colours.get(obj.identification_status, '#888'),
+            obj.get_identification_status_display(),
+        )
+
+
+# ======================================================
+# CHATBOT ADMIN
+# ======================================================
+
+class ChatMessageInline(admin.TabularInline):
+    model = ChatMessage
+    extra = 0
+    can_delete = False
+    fields = ['created_at', 'role', 'content', 'provider', 'latency_ms',
+              'used_fallback', 'error', 'flagged_by_admin']
+    readonly_fields = ['created_at', 'role', 'content', 'provider', 'latency_ms',
+                       'used_fallback', 'error']
+    ordering = ['created_at', 'id']
+
+    def has_add_permission(self, request, obj=None):
+        # Transcripts are a record of what a farmer was told, not a draft.
+        return False
+
+
+@admin.register(ChatSession)
+class ChatSessionAdmin(admin.ModelAdmin):
+    """
+    What farmers actually ask.
+
+    More valuable than the answers: the questions show which crops, seasons and
+    problems the product should cover next, straight from real users.
+    """
+
+    list_display = ['id', 'started_at', 'who', 'language', 'turns',
+                    'providers_used', 'first_question']
+    list_filter = ['language', 'started_at', 'messages__provider',
+                   'messages__used_fallback']
+    search_fields = ['messages__content', 'user__username', 'session_key']
+    date_hierarchy = 'started_at'
+    readonly_fields = ['user', 'session_key', 'user_ip', 'started_at',
+                       'last_active_at', 'language']
+    inlines = [ChatMessageInline]
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user').prefetch_related('messages')
+
+    @admin.display(description='Asked by')
+    def who(self, obj):
+        if obj.user_id:
+            return obj.user.username
+        return format_html('<span style="color:#888;">anon {}</span>', obj.session_key[:8])
+
+    @admin.display(description='Turns')
+    def turns(self, obj):
+        return obj.messages.count()
+
+    @admin.display(description='Answered by')
+    def providers_used(self, obj):
+        """
+        Which provider carried this conversation. If Gemini is answering
+        everything, Groq is failing silently and this is where you notice.
+        """
+        names = sorted({m.provider for m in obj.messages.all() if m.provider})
+        if not names:
+            return '-'
+        colour = '#b36b00' if 'gemini' in names and 'groq' not in names else '#1a7f37'
+        return format_html('<span style="color:{};">{}</span>', colour, ', '.join(names))
+
+    @admin.display(description='First question')
+    def first_question(self, obj):
+        first = obj.messages.filter(role=ChatMessage.ROLE_USER).first()
+        if not first:
+            return '-'
+        return (first.content[:70] + '...') if len(first.content) > 70 else first.content
+
+
+@admin.register(ChatMessage)
+class ChatMessageAdmin(admin.ModelAdmin):
+    """Flat view across conversations, for spotting patterns and failures."""
+
+    list_display = ['created_at', 'role', 'language', 'short_content',
+                    'provider', 'latency_ms', 'used_fallback', 'has_error',
+                    'flagged_by_admin']
+    list_filter = ['role', 'provider', 'language', 'used_fallback',
+                   'flagged_by_admin', 'created_at']
+    search_fields = ['content', 'admin_note']
+    date_hierarchy = 'created_at'
+    list_editable = ['flagged_by_admin']
+    readonly_fields = ['session', 'role', 'content', 'language', 'created_at',
+                       'provider', 'model_name', 'latency_ms', 'error',
+                       'used_fallback']
+    actions = ['flag_for_review', 'clear_flag']
+
+    @admin.display(description='Message')
+    def short_content(self, obj):
+        if obj.error:
+            return format_html('<em style="color:#b00020;">failed</em>')
+        return (obj.content[:90] + '...') if len(obj.content) > 90 else obj.content
+
+    @admin.display(description='Error', boolean=True)
+    def has_error(self, obj):
+        return bool(obj.error)
+
+    @admin.action(description='Flag selected messages for expert review')
+    def flag_for_review(self, request, queryset):
+        updated = queryset.update(flagged_by_admin=True)
+        self.message_user(request, f"{updated} message(s) flagged.")
+
+    @admin.action(description='Clear review flag')
+    def clear_flag(self, request, queryset):
+        updated = queryset.update(flagged_by_admin=False)
+        self.message_user(request, f"{updated} message(s) unflagged.")

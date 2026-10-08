@@ -24,6 +24,9 @@ from . import views
 urlpatterns = [
     path('', views.home, name='index'),
     path('about/', views.about, name='about'),
+
+    # Page translation API used by static/assets/js/translator.js
+    path('translate/', views.translate, name='translate'),
     
     # Detection app URLs
     path('detection/', include('detection.urls')),
@@ -40,8 +43,14 @@ urlpatterns = [
     path("accounts/", include("accounts.urls")),
     path("agrolease/", include("agrolease.urls")),
 
+    # IoT sensor app URLs
+    path('iot/', include('iot_sensor.urls')),
+
     # Marketplace
     path('marketplace/', include('marketplace.urls')),
+
+    # Site-wide pages, robots.txt and sitemap.xml (mounted at root)
+    path('', include('core.urls')),
 
     # Admin
     path('admin/', admin.site.urls),

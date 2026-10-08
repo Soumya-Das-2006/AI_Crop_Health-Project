@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import Category, Product, ProductImage, Order, OrderItem, OrderEvent
+from core.admin_mixins import ExportCsvMixin
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -14,7 +15,8 @@ class ProductImageInline(admin.TabularInline):
     extra = 1
 
 @admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
+class ProductAdmin(ExportCsvMixin, admin.ModelAdmin):
+    actions = ('export_as_csv',)
     list_display = ('name', 'sku', 'category', 'price', 'mrp', 'stock', 'is_featured', 'is_active')
     list_filter = ('category', 'is_featured', 'is_active')
     search_fields = ('name', 'sku', 'description')
@@ -37,7 +39,8 @@ class OrderEventInline(admin.TabularInline):
     readonly_fields = ('created_at', 'created_by')
 
 @admin.register(Order)
-class OrderAdmin(admin.ModelAdmin):
+class OrderAdmin(ExportCsvMixin, admin.ModelAdmin):
+    actions = ('export_as_csv',)
     list_display = ('order_number', 'customer_name', 'phone', 'grand_total', 'status', 'payment_status', 'created_at')
     list_filter = ('status', 'payment_status', 'payment_method', 'created_at')
     search_fields = ('order_number', 'customer_name', 'phone', 'address', 'tracking_number')

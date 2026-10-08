@@ -10,14 +10,32 @@
         {% if messages %}<div class="accounts-alerts">{% for message in messages %}<div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>{% endfor %}</div>{% endif %}
         <section class="accounts-welcome-band">
             <div><p class="accounts-kicker"><i class="bi bi-grid-1x2-fill" aria-hidden="true"></i> Farmer workspace</p><h1>Good to see you, {{ user.first_name|default:user.username }}</h1><p>Everything you need to monitor crop health, manage orders, and grow with confidence.</p></div>
-            <div class="accounts-welcome-mark"><i class="bi bi-flower1" aria-hidden="true"></i><span>Growing smarter<br>every season</span></div>
+            <div class="accounts-welcome-mark"><img src="{% static 'assets/img/hero_4.jpg' %}" alt="Farmer caring for a young plant"></div>
         </section>
 
         <div class="accounts-dashboard-grid">
             <aside class="accounts-profile-panel">
                 <div class="accounts-profile-top"><div class="accounts-avatar">{{ user.first_name|default:user.username|first|upper }}</div><div><span class="accounts-eyebrow">Your profile</span><h2>{{ user.first_name|default:user.username }}</h2><p>Farmer account</p></div></div>
                 <div class="accounts-verification"><span><i class="bi bi-shield-check" aria-hidden="true"></i> Account security</span>{% if user.global_profile.is_phone_verified and user.global_profile.is_email_verified %}<strong>Fully verified</strong>{% else %}<a href="{% url 'accounts:profile_edit' %}" class="accounts-profile-complete"><i class="bi bi-pencil-square" aria-hidden="true"></i> Complete profile</a>{% endif %}</div>
-                <dl class="accounts-profile-facts"><div><dt>Mobile</dt><dd>{{ user.global_profile.phone_number|default:"Not provided" }} {% if user.global_profile.is_phone_verified %}<i class="bi bi-check-circle-fill" aria-label="Verified"></i>{% endif %}</dd></div><div><dt>Email</dt><dd>{{ user.email|default:"Not provided" }} {% if user.global_profile.is_email_verified %}<i class="bi bi-check-circle-fill" aria-label="Verified"></i>{% endif %}</dd></div></dl>
+                <dl class="accounts-profile-facts">
+                    <div><dt>Mobile</dt><dd>{{ user.global_profile.phone_number|default:"Not provided" }} {% if user.global_profile.is_phone_verified %}<i class="bi bi-check-circle-fill" aria-label="Verified"></i>{% endif %}</dd></div>
+                    <div><dt>Email</dt><dd>{{ user.email|default:"Not provided" }} {% if user.global_profile.is_email_verified %}<i class="bi bi-check-circle-fill" aria-label="Verified"></i>{% endif %}</dd></div>
+                    <div>
+                        <dt>Address</dt>
+                        <dd>
+                            {% if user.global_profile.address or user.global_profile.city or user.global_profile.district or user.global_profile.state or user.global_profile.pincode %}
+                                {% if user.global_profile.address %}{{ user.global_profile.address|linebreaksbr }}{% if user.global_profile.city or user.global_profile.district or user.global_profile.state or user.global_profile.pincode %}<br>{% endif %}{% endif %}
+                                {% if user.global_profile.city %}{{ user.global_profile.city }}{% endif %}
+                                {% if user.global_profile.district %}{% if user.global_profile.city %}, {% endif %}{{ user.global_profile.district }}{% endif %}
+                                {% if user.global_profile.state %}{% if user.global_profile.city or user.global_profile.district %}, {% endif %}{{ user.global_profile.state }}{% endif %}
+                                {% if user.global_profile.pincode %}{% if user.global_profile.city or user.global_profile.district or user.global_profile.state %} - {% endif %}{{ user.global_profile.pincode }}{% endif %}
+                            {% else %}
+                                Not provided
+                            {% endif %}
+                        </dd>
+                    </div>
+                </dl>
+                <a href="{% url 'accounts:profile_edit' %}" class="accounts-profile-edit-link"><i class="bi bi-pencil-square" aria-hidden="true"></i> Edit profile and address</a>
                 <a href="{% url 'accounts:logout' %}" class="accounts-logout"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Log out</a>
             </aside>
 

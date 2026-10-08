@@ -23,6 +23,46 @@
   <div class="container">
     {% with owner_nav_page='dashboard' %}{% include 'agrolease/owner_nav.html' %}{% endwith %}
 
+    <!-- Cross-app quick links so the owner can reach monitoring and diagnosis. -->
+    <div class="row g-3 mt-3 mb-4">
+      <div class="col-6 col-lg-3">
+        <a href="{% url 'iot_sensor:field_dashboard' %}" class="text-decoration-none">
+          <div class="card h-100 border-0 shadow-sm text-center py-3">
+            <div class="text-primary mb-2"><i class="bi bi-broadcast fs-3"></i></div>
+            <h6 class="fw-bold mb-1">My Fields</h6>
+            <p class="text-muted small mb-0">Live sensor data</p>
+          </div>
+        </a>
+      </div>
+      <div class="col-6 col-lg-3">
+        <a href="{% url 'iot_sensor:alert_dashboard' %}" class="text-decoration-none">
+          <div class="card h-100 border-0 shadow-sm text-center py-3">
+            <div class="text-danger mb-2"><i class="bi bi-exclamation-triangle fs-3"></i></div>
+            <h6 class="fw-bold mb-1">Sensor Alerts</h6>
+            <p class="text-muted small mb-0">Threshold breaches</p>
+          </div>
+        </a>
+      </div>
+      <div class="col-6 col-lg-3">
+        <a href="{% url 'detection:diagnosis' %}" class="text-decoration-none">
+          <div class="card h-100 border-0 shadow-sm text-center py-3">
+            <div class="text-success mb-2"><i class="bi bi-leaf fs-3"></i></div>
+            <h6 class="fw-bold mb-1">Scan Crop</h6>
+            <p class="text-muted small mb-0">Diagnose leaf disease</p>
+          </div>
+        </a>
+      </div>
+      <div class="col-6 col-lg-3">
+        <a href="{% url 'iot_sensor:hardware_home' %}" class="text-decoration-none">
+          <div class="card h-100 border-0 shadow-sm text-center py-3">
+            <div class="text-info mb-2"><i class="bi bi-cpu fs-3"></i></div>
+            <h6 class="fw-bold mb-1">My Hardware</h6>
+            <p class="text-muted small mb-0">Add sensors</p>
+          </div>
+        </a>
+      </div>
+    </div>
+
     <div class="agrolease-dashboard-header">
       <div>
         <p class="agrolease-eyebrow">Owner workspace</p>

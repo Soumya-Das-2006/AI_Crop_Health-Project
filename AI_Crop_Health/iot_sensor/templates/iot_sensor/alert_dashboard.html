@@ -1,0 +1,86 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+{% block title %}Alert Dashboard — IoT Sensor{% endblock %}
+{% block content %}
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Alert Dashboard</h1>
+    <p>Real-time sensor threshold breach notifications (target latency &lt;2 min)</p>
+  </div>
+</div>
+<section class="section">
+<div class="container">
+  {% if messages %}
+    {% for msg in messages %}<div class="alert alert-success mb-4" role="status">{{ msg }}</div>{% endfor %}
+  {% endif %}
+
+  <div class="card border-0 shadow-sm iot-alerts-card">
+    <div class="card-header bg-white d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 p-4">
+      <div>
+        <h2 class="h4 mb-1">Recent Alerts</h2>
+        <p class="text-muted small mb-0">Latest sensor threshold notifications</p>
+      </div>
+      <a href="{% url 'iot_sensor:field_dashboard' %}" class="btn btn-outline-success btn-sm align-self-start align-self-sm-center">
+        <i class="bi bi-arrow-left me-1" aria-hidden="true"></i> Back to Fields
+      </a>
+    </div>
+    <div class="card-body p-3 p-md-4">
+      {% for alert in alerts %}
+      <article class="iot-alert-item iot-alert-{{ alert.severity }}{% if alert.is_resolved %} is-resolved{% endif %}">
+        <div class="d-flex align-items-start gap-3">
+          <div class="iot-alert-icon" aria-hidden="true">
+            {% if alert.severity == 'critical' %}<i class="bi bi-exclamation-octagon-fill"></i>{% elif alert.severity == 'warning' %}<i class="bi bi-exclamation-triangle-fill"></i>{% else %}<i class="bi bi-info-circle-fill"></i>{% endif %}
+          </div>
+          <div class="flex-grow-1 iot-alert-content">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+              <h3 class="h6 mb-0">{{ alert.field.name }}</h3>
+              <span class="badge iot-alert-severity">{{ alert.get_severity_display }}</span>
+              <span class="badge bg-light text-dark border">{{ alert.get_breach_type_display }}</span>
+              {% if not alert.is_read %}<span class="badge bg-danger">New</span>{% endif %}
+            </div>
+            <p class="mb-3">{{ alert.message }}</p>
+            <dl class="iot-alert-details mb-0">
+              <div><dt>Variable</dt><dd>{{ alert.variable }}</dd></div>
+              <div><dt>Value</dt><dd>{{ alert.actual_value }}</dd></div>
+              <div><dt>Time</dt><dd>{{ alert.alert_created|date:"d M Y, H:i" }}</dd></div>
+              <div>
+                <dt>Latency</dt>
+                <dd>{{ alert.latency_seconds|floatformat:1 }}s
+                  {% if alert.latency_seconds <= 120 %}
+                    <span class="text-success"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Under 2 min</span>
+                  {% else %}
+                    <span class="text-danger"><i class="bi bi-exclamation-circle-fill" aria-hidden="true"></i> Over 2 min</span>
+                  {% endif %}
+                </dd>
+              </div>
+            </dl>
+          </div>
+          <div class="flex-shrink-0">
+            {% if not alert.is_resolved %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="alert_id" value="{{ alert.pk }}">
+              <button type="submit" class="btn btn-success btn-sm">
+                <i class="bi bi-check2 me-1" aria-hidden="true"></i> Resolve
+              </button>
+            </form>
+            {% else %}
+            <span class="badge bg-success-subtle text-success-emphasis">
+              <i class="bi bi-check-circle-fill me-1" aria-hidden="true"></i> Resolved
+            </span>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+      {% empty %}
+      <div class="iot-alerts-empty text-center py-5 px-3">
+        <span class="iot-alerts-empty-icon"><i class="bi bi-shield-check" aria-hidden="true"></i></span>
+        <h3 class="h5 mt-3">All clear</h3>
+        <p class="text-muted mb-0">No alerts yet — all sensor readings are within thresholds.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+</section>
+{% endblock %}

@@ -1,0 +1,46 @@
+# ======================================================================
+# AI Crop Health - offline / training-only dependencies
+# ======================================================================
+#   pip install -r requirements.txt -r requirements-ml.txt
+#
+# These are NOT installed on the server, on purpose.
+#
+# WHY TENSORFLOW IS NOT A SERVER DEPENDENCY
+# -----------------------------------------
+# It installs at 1.5GB, and the predictor loads the 19MB model into EVERY
+# gunicorn worker at 600-800MB each. That is the difference between a 1GB
+# instance and a 4GB one.
+#
+# What it buys on a server is nothing. The bundled .h5 is the OFFLINE tier of
+# detection/ml_engine/plant_disease/service.py - a 38-class PlantVillage model
+# that covers apple, grape, tomato, potato and maize, and contains no rice,
+# wheat, cotton, sugarcane, chilli, banana or pulses. A server is never
+# offline, and crop.health (the online tier) covers 23 major crops including
+# all of those. So on a server the heavy tier is both slower and worse.
+#
+# views.py already imports the predictor inside a try/except and runs without
+# it; service.py routes to crop.health and reports honestly if that is also
+# unavailable. Nothing breaks.
+#
+# INSTALL THESE WHEN YOU ARE:
+#   - retraining or evaluating the leaf-disease model
+#   - building an offline / on-device variant where the local model is the
+#     whole point
+#   - running detection/ml_engine/*/train.py
+# ======================================================================
+
+# ---------------------------------------------------------------- Leaf-disease CNN
+# The shipped model is a Keras 2 H5 file. tf-keras is REQUIRED: loading it with
+# Keras 3 fails on DepthwiseConv2D, and the predictor sets
+# TF_USE_LEGACY_KERAS=1 to route through tf-keras.
+tensorflow>=2.16,<3.0
+tf-keras>=2.21,<2.22
+
+# ---------------------------------------------------------------- Training only
+# Imported solely by detection/ml_engine/*/train.py, never on a request path.
+pandas>=2.0
+
+# ---------------------------------------------------------------- Test fixtures
+# Builds GPS-tagged JPEGs so the EXIF-stripping tests can prove that location
+# metadata does not reach a third-party provider.
+piexif>=1.1.3,<2.0

@@ -3,6 +3,7 @@ from .models import MarketPrice, CropInfo, SchemeCategory, GovernmentScheme, Sug
 from django.utils.html import format_html
 from core.admin import AuditModelAdminMixin
 from core.services import AuditService
+from core.admin_mixins import ExportCsvMixin
 
 @admin.register(CropInfo)
 class CropInfoAdmin(AuditModelAdminMixin, admin.ModelAdmin):
@@ -13,7 +14,8 @@ class CropInfoAdmin(AuditModelAdminMixin, admin.ModelAdmin):
     list_editable = ('is_active',)
 
 @admin.register(MarketPrice)
-class MarketPriceAdmin(AuditModelAdminMixin, admin.ModelAdmin):
+class MarketPriceAdmin(ExportCsvMixin, AuditModelAdminMixin, admin.ModelAdmin):
+    actions = ('export_as_csv',)
     list_display = ('crop_name', 'market_location', 'price_per_quintal', 'price_trend', 'last_updated')
     search_fields = ('crop_name', 'market_location')
     list_filter = ('category', 'price_trend', 'is_active')
@@ -77,7 +79,8 @@ class SuggestionAdmin(AuditModelAdminMixin, admin.ModelAdmin):
 
 
 @admin.register(SupportMessage)
-class SupportMessageAdmin(AuditModelAdminMixin, admin.ModelAdmin):
+class SupportMessageAdmin(ExportCsvMixin, AuditModelAdminMixin, admin.ModelAdmin):
+    actions = ('export_as_csv',)
     list_display = ('user', 'get_sender', 'message_preview', 'is_read', 'is_from_admin', 'created_at')
     list_filter = ('is_from_admin', 'is_read', 'created_at')
     search_fields = ('user__username', 'message')

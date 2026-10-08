@@ -2,14 +2,15 @@ from django.contrib import admin
 from .models import Contact, NewsletterSubscriber, Service, Testimonial, BiodegradableCompany, WasteSubmission
 from core.admin import AuditModelAdminMixin
 from core.services import AuditService
+from core.admin_mixins import ExportCsvMixin
 
 @admin.register(Contact)
-class ContactAdmin(AuditModelAdminMixin, admin.ModelAdmin):
+class ContactAdmin(ExportCsvMixin, AuditModelAdminMixin, admin.ModelAdmin):
     list_display = ('name', 'email', 'location', 'related_work', 'subject', 'created_date', 'is_read')
     list_filter = ('is_read', 'created_date', 'related_work')
     search_fields = ('name', 'email', 'subject')
     readonly_fields = ('created_date',)
-    actions = ['mark_as_read', 'mark_as_unread']
+    actions = ['mark_as_read', 'mark_as_unread', 'export_as_csv']
 
     def mark_as_read(self, request, queryset):
         queryset.update(is_read=True)
@@ -26,7 +27,8 @@ class ContactAdmin(AuditModelAdminMixin, admin.ModelAdmin):
     mark_as_unread.short_description = "Mark selected contacts as unread"
 
 @admin.register(NewsletterSubscriber)
-class NewsletterSubscriberAdmin(AuditModelAdminMixin, admin.ModelAdmin):
+class NewsletterSubscriberAdmin(ExportCsvMixin, AuditModelAdminMixin, admin.ModelAdmin):
+    actions = ('export_as_csv',)
     list_display = ('email', 'subscribed_date')
     list_filter = ('subscribed_date',)
     search_fields = ('email',)
@@ -55,12 +57,12 @@ class BiodegradableCompanyAdmin(AuditModelAdminMixin, admin.ModelAdmin):
     readonly_fields = ('created_at',)
 
 @admin.register(WasteSubmission)
-class WasteSubmissionAdmin(AuditModelAdminMixin, admin.ModelAdmin):
+class WasteSubmissionAdmin(ExportCsvMixin, AuditModelAdminMixin, admin.ModelAdmin):
     list_display = ('farmer_name', 'crop_type', 'waste_type', 'quantity', 'submitted_at', 'is_processed')
     list_filter = ('waste_type', 'submitted_at', 'is_processed')
     search_fields = ('farmer_name', 'crop_type', 'village', 'district', 'state')
     readonly_fields = ('submitted_at',)
-    actions = ['mark_as_processed', 'mark_as_unprocessed']
+    actions = ['mark_as_processed', 'mark_as_unprocessed', 'export_as_csv']
 
     def mark_as_processed(self, request, queryset):
         queryset.update(is_processed=True)

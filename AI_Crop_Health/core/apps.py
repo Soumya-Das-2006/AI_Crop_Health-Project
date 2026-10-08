@@ -8,3 +8,11 @@ class CoreConfig(AppConfig):
     def ready(self):
         import core.signals
         import core.admin_extensions
+
+        # Re-title the admin from SiteSettings. Wrapped because ready() also runs
+        # during `migrate` on an empty database, before the table exists.
+        try:
+            from core.admin_site import apply_admin_branding
+            apply_admin_branding()
+        except Exception:
+            pass

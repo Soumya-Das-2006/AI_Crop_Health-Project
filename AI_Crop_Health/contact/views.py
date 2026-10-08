@@ -1,60 +1,97 @@
+import logging
+
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import JsonResponse
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
+
+from core.ratelimit import is_rate_limited
+
+from .forms import ContactForm, NewsletterForm
 from .models import Contact, NewsletterSubscriber, Service, Testimonial, BiodegradableCompany, WasteSubmission
 
+logger = logging.getLogger(__name__)
+
+
+def _is_ajax(request):
+    return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+
 def contact_form(request):
-    """Contact us page with form submission"""
+    """
+    Contact page.
+
+    Previously this read request.POST directly and called
+    Contact.objects.create(), which runs no validators at all: an invalid email
+    was stored, and an over-length name raised DataError (HTTP 500) on
+    PostgreSQL. It also had no spam protection. Now a ModelForm validates
+    everything, a honeypot plus timing check catches bots, and submissions are
+    rate limited per IP.
+    """
     if request.method == 'POST':
-        name = request.POST.get('name')
-        email = request.POST.get('email')
-        phone = request.POST.get('phone', '')
-        location = request.POST.get('location', '')
-        related_work = request.POST.get('related_work')
-        subject = request.POST.get('subject')
-        message = request.POST.get('message')
+        if is_rate_limited(request, 'contact', limit=5, window_seconds=3600):
+            text = ('You have sent several messages recently. '
+                    'Please wait a while before sending another.')
+            if _is_ajax(request):
+                return JsonResponse({'status': 'error', 'message': text}, status=429)
+            messages.error(request, text)
+            return render(request, 'contact/contact.html', {
+                'form': ContactForm(),
+                'form_rendered_at': ContactForm.initial_timestamp(),
+            }, status=429)
 
-        if name and email and related_work and subject and message:
-            contact = Contact.objects.create(
-                name=name,
-                email=email,
-                phone=phone,
-                location=location,
-                related_work=related_work,
-                subject=subject,
-                message=message
-            )
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({'status': 'success', 'message': 'Thank you for contacting us! We will get back to you soon.'})
-            messages.success(request, 'Thank you for contacting us! We will get back to you soon.')
+        form = ContactForm(request.POST)
+        if form.is_valid():
+            contact = form.save()
+            logger.info('Contact message #%s received from %s',
+                        contact.pk, contact.email)
+            text = 'Thank you for contacting us! We will get back to you soon.'
+            if _is_ajax(request):
+                return JsonResponse({'status': 'success', 'message': text})
+            messages.success(request, text)
             return redirect('contact:form')
-        else:
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({'status': 'error', 'message': 'Please fill in all required fields.'})
-            messages.error(request, 'Please fill in all required fields.')
 
-    return render(request, 'contact/contact.html')
+        if _is_ajax(request):
+            return JsonResponse(
+                {'status': 'error',
+                 'message': 'Please check the form and try again.',
+                 'errors': form.errors},
+                status=400,
+            )
+        messages.error(request, 'Please correct the errors below.')
+        return render(request, 'contact/contact.html', {
+            'form': form,
+            'form_rendered_at': ContactForm.initial_timestamp(),
+        })
+
+    return render(request, 'contact/contact.html', {
+        'form': ContactForm(),
+        'form_rendered_at': ContactForm.initial_timestamp(),
+    })
+
 
 def subscribe(request):
-    """Newsletter subscription"""
-    if request.method == 'POST':
-        email = request.POST.get('email')
-        if email:
-            try:
-                validate_email(email)
-                subscriber, created = NewsletterSubscriber.objects.get_or_create(email=email)
-                if created:
-                    message = 'Thank you for subscribing to our newsletter!'
-                else:
-                    message = 'You are already subscribed to our newsletter.'
-                return JsonResponse({'message': message})
-            except ValidationError:
-                return JsonResponse({'message': 'Please enter a valid email address.'})
-        else:
-            return JsonResponse({'message': 'Email is required.'})
-    return JsonResponse({'message': 'Invalid request method.'})
+    """Newsletter subscription (AJAX)."""
+    if request.method != 'POST':
+        return JsonResponse({'message': 'Invalid request method.'}, status=405)
+
+    if is_rate_limited(request, 'subscribe', limit=5, window_seconds=3600):
+        return JsonResponse(
+            {'message': 'Too many attempts. Please try again later.'}, status=429,
+        )
+
+    form = NewsletterForm(request.POST)
+    if not form.is_valid():
+        first_error = next(iter(form.errors.values()))[0]
+        return JsonResponse({'message': first_error}, status=400)
+
+    email = form.cleaned_data['email']
+    _, created = NewsletterSubscriber.objects.get_or_create(email=email)
+    return JsonResponse({
+        'message': ('Thank you for subscribing to our newsletter!' if created
+                    else 'You are already subscribed to our newsletter.'),
+    })
 
 def services(request):
     """Services page"""

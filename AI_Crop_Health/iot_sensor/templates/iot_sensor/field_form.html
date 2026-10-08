@@ -1,0 +1,91 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+{% block title %}Add a Field — AI Crop Health{% endblock %}
+{% block content %}
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>{% if is_edit %}Edit Field{% else %}Add a Field{% endif %}</h1>
+    <p>Step 1 of 2 — describe the land you want to monitor</p>
+  </div>
+</div>
+
+<section class="section">
+<div class="container" style="max-width:720px;">
+
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="alert alert-{% if msg.tags == 'error' %}danger{% elif msg.tags %}{{ msg.tags }}{% else %}info{% endif %}">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">
+      {% for err in form.non_field_errors %}<div>{{ err }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    {% for field in form %}
+      <div class="mb-3">
+        <label for="{{ field.id_for_label }}" class="form-label">
+          {{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}
+        </label>
+        {{ field }}
+        {% if field.help_text %}
+          <div class="form-text">{{ field.help_text }}</div>
+        {% endif %}
+        {% for err in field.errors %}
+          <div class="invalid-feedback d-block">{{ err }}</div>
+        {% endfor %}
+      </div>
+    {% endfor %}
+
+    <button type="button" id="use-my-location" class="btn btn-outline-secondary btn-sm mb-3">
+      <i class="bi bi-geo-alt"></i> Use my current location
+    </button>
+    <div id="geo-status" class="form-text mb-3"></div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-success">Save &amp; add device</button>
+      <a href="{% url 'iot_sensor:hardware_home' %}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </form>
+
+</div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Fills latitude/longitude from the phone's GPS so a farmer standing in the
+// field does not have to type coordinates.
+(function () {
+  var button = document.getElementById('use-my-location');
+  var status = document.getElementById('geo-status');
+  var lat = document.getElementById('id_latitude');
+  var lng = document.getElementById('id_longitude');
+  if (!button || !lat || !lng) { return; }
+
+  button.addEventListener('click', function () {
+    if (!navigator.geolocation) {
+      status.textContent = 'This browser cannot report your location. Enter it by hand if you know it.';
+      return;
+    }
+    status.textContent = 'Getting your location...';
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        lat.value = pos.coords.latitude.toFixed(7);
+        lng.value = pos.coords.longitude.toFixed(7);
+        status.textContent = 'Location filled in. Check it looks right before saving.';
+      },
+      function (err) {
+        status.textContent = 'Could not get location (' + err.message + '). You can leave these blank.';
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  });
+})();
+</script>
+{% endblock %}

@@ -2,6 +2,10 @@
 .env
 *.env
 .env.*
+# ...but the template MUST be committed - it is the only record of which
+# environment variables the project needs. `.env.*` above would hide it.
+!.env.example
+!*.env.example
 
 # Python cache
 __pycache__/
@@ -39,6 +43,7 @@ dist/
 build/
 *.egg-info/
 .eggs/
+/AI_Crop_Health.zip
 
 # Jupyter
 .ipynb_checkpoints
@@ -56,3 +61,13 @@ coverage.xml
 *.h5
 *.pkl
 *.tflite
+
+# Tests - intentionally not kept in this repository
+test*.py
+tests/
+conftest.py
+pytest.ini
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/

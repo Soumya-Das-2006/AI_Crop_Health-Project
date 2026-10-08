@@ -5,6 +5,12 @@
 {% block body_class %}contact-page{% endblock %}
 
 {% block content %}
+<style>
+  /* Honeypot: positioned off-screen rather than display:none, because
+     some bots deliberately skip fields that are display:none. */
+  .hp-wrap { position: absolute !important; left: -9999px !important;
+             top: auto; width: 1px; height: 1px; overflow: hidden; }
+</style>
 
     <!-- Page Title -->
     <div class="page-title dark-background" data-aos="fade" style="background-image: url('{% static 'assets/img/page-title-bg.webp' %}');">
@@ -22,8 +28,8 @@
     <!-- Contact Section -->
     <section id="contact" class="contact section">
 
-      <div class="mb-5">
-        <iframe style="width: 100%; height: 400px;" src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d12097.433213460943!2d-74.0062269!3d40.7101282!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0xb89d1fe6bc499443!2sDowntown+Conference+Center!5e0!3m2!1smk!2sbg!4v1539943755621" frameborder="0" allowfullscreen=""></iframe>
+      <div class="contact-map mb-5">
+        <iframe title="Map showing Kolkata, West Bengal" src="https://maps.google.com/maps?q=Kolkata%2C%20West%20Bengal%2C%20India&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
       </div><!-- End Google Maps -->
 
       <div class="container" data-aos="fade">
@@ -34,13 +40,21 @@
 
             <div class="info">
               <h3>Get in touch</h3>
-              <p>Et id eius voluptates atque nihil voluptatem enim in tempore minima sit ad mollitia commodi minus.</p>
+              <p>Questions about our services or need help with your account? Send us a message and our team will be glad to help.</p>
 
               <div class="info-item d-flex">
                 <i class="bi bi-geo-alt shrink-0"></i>
                 <div>
-                  <h4>Location:</h4>
-                  <p>A108 Adam Street, New York, NY 535022</p>
+                  <h4>Kolkata Office:</h4>
+                  <p>{{ company.address }}</p>
+                </div>
+              </div><!-- End Info Item -->
+
+              <div class="info-item d-flex">
+                <i class="bi bi-geo-alt shrink-0"></i>
+                <div>
+                  <h4>Parul University Branch:</h4>
+                  <p>Vadodara, Gujarat, India</p>
                 </div>
               </div><!-- End Info Item -->
 
@@ -48,73 +62,114 @@
                 <i class="bi bi-envelope shrink-0"></i>
                 <div>
                   <h4>Email:</h4>
-                  <p>info@example.com</p>
+                  <p><a href="mailto:{{ company.email }}">{{ company.email }}</a></p>
                 </div>
               </div><!-- End Info Item -->
 
+              {% if company.phone %}
               <div class="info-item d-flex">
                 <i class="bi bi-phone shrink-0"></i>
                 <div>
                   <h4>Call:</h4>
-                  <p>+1 5589 55488 55</p>
+                  <p><a href="tel:{{ company.phone }}">{{ company.phone }}</a></p>
                 </div>
               </div><!-- End Info Item -->
+              {% endif %}
 
             </div>
 
           </div>
 
           <div class="col-lg-8">
-            <form action="{% url 'contact:form' %}" method="post" role="form">
+            <form class="php-email-form" action="{% url 'contact:form' %}" method="post" role="form" novalidate>
               {% csrf_token %}
+
+              <div class="hp-wrap" aria-hidden="true">
+                <label for="{{ form.website.id_for_label }}">{{ form.website.label }}</label>
+                {{ form.website }}
+              </div>
+              <input type="hidden" name="form_rendered_at" value="{{ form_rendered_at }}">
+
+              {% if form.non_field_errors %}
+                <div class="alert alert-danger" role="alert">
+                  {% for err in form.non_field_errors %}<div>{{ err }}</div>{% endfor %}
+                </div>
+              {% endif %}
+
               <div class="row">
                 <div class="col-md-6 form-group">
-                  <input type="text" name="name" class="form-control" id="name" placeholder="Your Name" required>
+                  <label for="{{ form.name.id_for_label }}" class="visually-hidden">Your name</label>
+                  <input type="text" name="name" class="form-control{% if form.name.errors %} is-invalid{% endif %}"
+                         id="{{ form.name.id_for_label }}" placeholder="Your Name"
+                         value="{{ form.name.value|default_if_none:'' }}" maxlength="100" required>
+                  {% for err in form.name.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
                 </div>
-                <div class="col-md-6 form-group mt-3 mt-md-0">
-                  <input type="email" class="form-control" name="email" id="email" placeholder="Your Email" required>
+                <div class="col-md-6 form-group">
+                  <label for="{{ form.email.id_for_label }}" class="visually-hidden">Your email</label>
+                  <input type="email" class="form-control{% if form.email.errors %} is-invalid{% endif %}"
+                         name="email" id="{{ form.email.id_for_label }}" placeholder="Your Email"
+                         value="{{ form.email.value|default_if_none:'' }}" maxlength="254" required>
+                  {% for err in form.email.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
                 </div>
               </div>
-              <div class="form-group mt-3">
-                <input type="text" class="form-control" name="phone" id="phone" placeholder="Your Phone (Optional)">
+
+              <div class="form-group">
+                <label for="{{ form.phone.id_for_label }}" class="visually-hidden">Your phone (optional)</label>
+                <input type="tel" class="form-control{% if form.phone.errors %} is-invalid{% endif %}"
+                       name="phone" id="{{ form.phone.id_for_label }}" placeholder="Your Phone (Optional)"
+                       value="{{ form.phone.value|default_if_none:'' }}" maxlength="15" inputmode="tel">
+                {% for err in form.phone.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
               </div>
-              <div class="form-group mt-3">
-                <input type="text" class="form-control" name="location" id="location" placeholder="Your Location" required>
+
+              <div class="form-group">
+                <label for="{{ form.location.id_for_label }}" class="visually-hidden">Your location</label>
+                <input type="text" class="form-control{% if form.location.errors %} is-invalid{% endif %}"
+                       name="location" id="{{ form.location.id_for_label }}" placeholder="Your Location"
+                       value="{{ form.location.value|default_if_none:'' }}" maxlength="100" required>
+                {% for err in form.location.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
               </div>
-              <div class="form-group mt-3">
-                <select class="form-control" name="related_work" id="related_work" required>
+
+              <div class="form-group">
+                <label for="{{ form.related_work.id_for_label }}" class="visually-hidden">Related work</label>
+                <select class="form-control{% if form.related_work.errors %} is-invalid{% endif %}"
+                        name="related_work" id="{{ form.related_work.id_for_label }}" required>
                   <option value="">Select Related Work*</option>
-                  <option value="farmer_api_key">Farmer API Key Request</option>
-                  <option value="crop_disease_api">Crop Disease Prediction API</option>
-                  <option value="soil_analysis">AI Soil Analysis</option>
-                  <option value="weather_forecast">Weather Forecast Integration</option>
-                  <option value="smart_irrigation">Smart Irrigation System</option>
-                  <option value="dashboard_access">Agriculture Dashboard Access</option>
-                  <option value="model_training">Model Training / Custom AI Model</option>
-                  <option value="technical_support">Technical Support</option>
-                  <option value="partnership">Partnership / Collaboration</option>
-                  <option value="other">Other</option>
+                  {% for value, label in form.fields.related_work.choices %}
+                    {% if value %}
+                      <option value="{{ value }}"{% if form.related_work.value == value %} selected{% endif %}>{{ label }}</option>
+                    {% endif %}
+                  {% endfor %}
                 </select>
+                {% for err in form.related_work.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
               </div>
-              <div class="form-group mt-3">
-                <input type="text" class="form-control" name="subject" id="subject" placeholder="Subject" required>
+
+              <div class="form-group">
+                <label for="{{ form.subject.id_for_label }}" class="visually-hidden">Subject</label>
+                <input type="text" class="form-control{% if form.subject.errors %} is-invalid{% endif %}"
+                       name="subject" id="{{ form.subject.id_for_label }}" placeholder="Subject"
+                       value="{{ form.subject.value|default_if_none:'' }}" maxlength="200" required>
+                {% for err in form.subject.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
               </div>
-              <div class="form-group mt-3">
-                <textarea class="form-control" name="message" rows="5" placeholder="Message" required></textarea>
+
+              <div class="form-group">
+                <label for="{{ form.message.id_for_label }}" class="visually-hidden">Message</label>
+                <textarea class="form-control{% if form.message.errors %} is-invalid{% endif %}"
+                          name="message" id="{{ form.message.id_for_label }}" rows="5"
+                          placeholder="Message" maxlength="5000" required>{{ form.message.value|default_if_none:'' }}</textarea>
+                {% for err in form.message.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
               </div>
-              <div class="my-3">
-                {% if messages %}
+
+              {% if messages %}
+                <div class="contact-form-messages">
                   {% for message in messages %}
                     <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
                       {{ message }}
                       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                   {% endfor %}
-                {% endif %}
-                <div class="loading" style="display: none;">Loading</div>
-                <div class="error-message"></div>
-                <div class="sent-message" style="display: none;">Your message has been sent. Thank you!</div>
-              </div>
+                </div>
+              {% endif %}
+
               <div class="text-center"><button type="submit" id="submit-btn">Send Message</button></div>
             </form>
           </div><!-- End Contact Form -->

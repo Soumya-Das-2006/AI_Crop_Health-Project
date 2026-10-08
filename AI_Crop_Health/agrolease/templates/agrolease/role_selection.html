@@ -22,7 +22,6 @@
 
 <section class="section">
   <div class="container">
-        {% csrf_token %}
     <div class="row justify-content-center">
       <div class="col-lg-8 text-center">
         <!-- Header -->
@@ -35,7 +34,7 @@
         <div class="role-cards-grid">
             {% if not available_roles or 'owner' in available_roles %}
             <!-- Land Owner Card -->
-            <div class="role-card role-card-owner" onclick="selectRole('owner')">
+            <div class="role-card role-card-owner">
                 <div class="role-card-content">
                     <div class="role-card-icon">
                         <svg class="role-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,15 +66,19 @@
                     </li>
                 </ul>
 
-                <button class="role-card-button role-card-button-owner">
+                <form method="post" action="{% url 'agrolease:role_selection' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="role" value="owner">
+                    <button type="submit" class="role-card-button role-card-button-owner">
                     Continue as Land Owner
-                </button>
+                    </button>
+                </form>
             </div>
             {% endif %}
 
             {% if not available_roles or 'farmer' in available_roles %}
             <!-- Farmer Card -->
-            <div class="role-card role-card-farmer" onclick="selectRole('farmer')">
+            <div class="role-card role-card-farmer">
                 <div class="role-card-content">
                     <div class="role-card-icon">
                         <svg class="role-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -107,9 +110,13 @@
                     </li>
                 </ul>
 
-                <button class="role-card-button role-card-button-farmer">
+                <form method="post" action="{% url 'agrolease:role_selection' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="role" value="farmer">
+                    <button type="submit" class="role-card-button role-card-button-farmer">
                     Continue as Farmer
-                </button>
+                    </button>
+                </form>
             </div>
             {% endif %}
         </div>
@@ -119,28 +126,4 @@
 
 </section>
 
-<script>
-function selectRole(role) {
-    // Create a form to submit the role selection
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '';
-
-    // Add CSRF token
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
-    if (csrfToken) {
-        form.appendChild(csrfToken.cloneNode(true));
-    }
-
-    // Add role input
-    const roleInput = document.createElement('input');
-    roleInput.type = 'hidden';
-    roleInput.name = 'role';
-    roleInput.value = role;
-    form.appendChild(roleInput);
-
-    document.body.appendChild(form);
-    form.submit();
-}
-</script>
 {% endblock %}

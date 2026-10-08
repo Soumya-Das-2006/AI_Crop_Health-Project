@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Bad request — AI Crop Health</title>
+<!--
+  Self-contained like 500.html. A 400 is frequently caused by a Host header that
+  is not in ALLOWED_HOSTS, i.e. the site is misconfigured, so this page must not
+  depend on anything that could also be misconfigured.
+-->
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+       background:#f8f9fa;color:#1f2d3d;padding:24px;line-height:1.6;
+       font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .card{background:#fff;border-radius:12px;padding:40px 28px;max-width:520px;width:100%;
+        text-align:center;box-shadow:0 2px 18px rgba(0,0,0,.08)}
+  .code{font-size:clamp(3rem,11vw,5rem);font-weight:700;color:#198754;line-height:1;margin:0 0 8px}
+  h1{font-size:1.3rem;margin:0 0 12px}
+  p{color:#6c757d;margin:0 0 20px}
+  a{display:inline-block;text-decoration:none;background:#198754;color:#fff;
+    padding:10px 20px;border-radius:6px;font-weight:600}
+  a:focus-visible{outline:3px solid #0a58ca;outline-offset:2px}
+  @media (prefers-color-scheme: dark){
+    body{background:#16191d;color:#e9ecef}.card{background:#21262d;box-shadow:none}p{color:#adb5bd}
+  }
+</style>
+</head>
+<body>
+  <main class="card">
+    <p class="code">400</p>
+    <h1>We couldn&rsquo;t process that request</h1>
+    <p>The request wasn&rsquo;t something we could understand. Please try again.</p>
+    <a href="/">Go to homepage</a>
+  </main>
+</body>
+</html>

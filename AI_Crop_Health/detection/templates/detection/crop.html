@@ -39,6 +39,34 @@
             Use the result as a starting point, not as a guarantee.
           </p>
 
+          {% if sensor_prefill %}
+            <div class="alert alert-success d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div>
+                <i class="bi bi-broadcast"></i>
+                <strong>Filled in from your sensors.</strong>
+                Live reading from <strong>{{ sensor_prefill.field_name }}</strong>,
+                {{ sensor_prefill.recorded_at|timesince }} ago.
+                {% if sensor_prefill.missing %}
+                  <br><span class="small text-muted">
+                    Your hardware does not report
+                    {% for m in sensor_prefill.missing %}{{ m }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                    &mdash; please enter them by hand.
+                  </span>
+                {% endif %}
+              </div>
+              <a href="{% url 'iot_sensor:field_dashboard' %}" class="btn btn-sm btn-outline-success">
+                View field data
+              </a>
+            </div>
+          {% elif user.is_authenticated %}
+            <div class="alert alert-light border small">
+              <i class="bi bi-cpu"></i>
+              Tired of typing these numbers?
+              <a href="{% url 'iot_sensor:hardware_home' %}">Register your field sensors</a>
+              and this form fills itself from live readings.
+            </div>
+          {% endif %}
+
           <form method="POST" action="{% url 'detection:crop_recommendation' %}">
             {% csrf_token %}
 
@@ -47,47 +75,47 @@
               <div class="col-md-4">
                 <label class="form-label">Nitrogen (N)</label>
                 <input type="number" name="N" class="form-control" min="0" max="150"
-                       value="{{ request.POST.N|default_if_none:'' }}" required>
+                       value="{% if request.POST.N %}{{ request.POST.N }}{% else %}{{ sensor_prefill.values.N|default_if_none:'' }}{% endif %}" required>
               </div>
 
               <div class="col-md-4">
                 <label class="form-label">Phosphorus (P)</label>
                 <input type="number" name="P" class="form-control" min="0" max="150"
-                       value="{{ request.POST.P }}" required>
+                       value="{% if request.POST.P %}{{ request.POST.P }}{% else %}{{ sensor_prefill.values.P|default_if_none:'' }}{% endif %}" required>
               </div>
 
               <div class="col-md-4">
                 <label class="form-label">Potassium (K)</label>
                 <input type="number" name="K" class="form-control" min="0" max="210"
-                       value="{{ request.POST.K }}" required>
+                       value="{% if request.POST.K %}{{ request.POST.K }}{% else %}{{ sensor_prefill.values.K|default_if_none:'' }}{% endif %}" required>
               </div>
 
               <div class="col-md-6">
                 <label class="form-label">Soil Temperature (°C)</label>
                 <input type="number" step="any" name="temperature"
                        min="5" max="45" class="form-control"
-                       value="{{ request.POST.temperature }}" required>
+                       value="{% if request.POST.temperature %}{{ request.POST.temperature }}{% else %}{{ sensor_prefill.values.temperature|default_if_none:'' }}{% endif %}" required>
               </div>
 
               <div class="col-md-6">
                 <label class="form-label">Soil Humidity (%)</label>
                 <input type="number" step="any" name="humidity"
                        min="10" max="100" class="form-control"
-                       value="{{ request.POST.humidity }}" required>
+                       value="{% if request.POST.humidity %}{{ request.POST.humidity }}{% else %}{{ sensor_prefill.values.humidity|default_if_none:'' }}{% endif %}" required>
               </div>
 
               <div class="col-md-6">
                 <label class="form-label">Soil pH</label>
                 <input type="number" step="any" name="ph"
                        min="3.5" max="9" class="form-control"
-                       value="{{ request.POST.ph }}" required>
+                       value="{% if request.POST.ph %}{{ request.POST.ph }}{% else %}{{ sensor_prefill.values.ph|default_if_none:'' }}{% endif %}" required>
               </div>
 
               <div class="col-md-6">
                 <label class="form-label">Rainfall (mm)</label>
                 <input type="number" step="any" name="rainfall"
                        min="20" max="400" class="form-control"
-                       value="{{ request.POST.rainfall }}" required>
+                       value="{% if request.POST.rainfall %}{{ request.POST.rainfall }}{% else %}{{ sensor_prefill.values.rainfall|default_if_none:'' }}{% endif %}" required>
               </div>
             </div>
 

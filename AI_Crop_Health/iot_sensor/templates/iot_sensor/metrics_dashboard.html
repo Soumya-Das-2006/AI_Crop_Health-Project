@@ -1,0 +1,156 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+{% block title %}Evaluation Metrics — IoT Sensor{% endblock %}
+{% block content %}
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>System Evaluation Metrics</h1>
+    <p>PDR · Alert Latency · Water Reduction · Uptime · Crop Accuracy · SUS Score</p>
+  </div>
+</div>
+<section class="section">
+  <div class="container">
+    <div class="row row-cols-2 row-cols-md-3 row-cols-xl-4 g-3 mb-4">
+      <div class="col">
+        <article class="card h-100 border-0 shadow-sm iot-metric-card">
+          <div class="card-body">
+            <p class="iot-metric-label">Online Nodes</p>
+            <p class="iot-metric-value text-success">{{ online_nodes }}<span class="iot-metric-total"> / {{ total_nodes }}</span></p>
+          </div>
+        </article>
+      </div>
+      <div class="col">
+        <article class="card h-100 border-0 shadow-sm iot-metric-card">
+          <div class="card-body">
+            <p class="iot-metric-label">Alerts Today</p>
+            <p class="iot-metric-value text-danger">{{ today_alerts }}</p>
+          </div>
+        </article>
+      </div>
+      <div class="col">
+        <article class="card h-100 border-0 shadow-sm iot-metric-card">
+          <div class="card-body">
+            <p class="iot-metric-label">Alerts Under 2 min</p>
+            <p class="iot-metric-value text-primary">{{ alerts_under_2min }}</p>
+          </div>
+        </article>
+      </div>
+      <div class="col">
+        <article class="card h-100 border-0 shadow-sm iot-metric-card">
+          <div class="card-body">
+            <p class="iot-metric-label">Crop Accuracy</p>
+            <p class="iot-metric-value text-primary">{% if crop_accuracy != None %}{{ crop_accuracy }}%{% else %}—{% endif %}</p>
+          </div>
+        </article>
+      </div>
+      {% if latest %}
+      <div class="col">
+        <article class="card h-100 border-0 shadow-sm iot-metric-card">
+          <div class="card-body">
+            <p class="iot-metric-label">PDR (Latest)</p>
+            <p class="iot-metric-value text-secondary">{% if latest.packet_delivery_ratio != None %}{{ latest.packet_delivery_ratio }}%{% else %}—{% endif %}</p>
+          </div>
+        </article>
+      </div>
+      <div class="col">
+        <article class="card h-100 border-0 shadow-sm iot-metric-card">
+          <div class="card-body">
+            <p class="iot-metric-label">SUS Score</p>
+            <p class="iot-metric-value text-warning">{% if latest.sus_score != None %}{{ latest.sus_score }}{% else %}—{% endif %}</p>
+          </div>
+        </article>
+      </div>
+      {% endif %}
+    </div>
+
+    <section class="card border-0 shadow-sm mb-4 iot-metrics-panel" aria-labelledby="metrics-log-heading">
+      <div class="card-header bg-white d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 p-3 p-md-4">
+        <div>
+          <h2 id="metrics-log-heading" class="h4 mb-1">Daily Metrics Log</h2>
+          <p class="small text-muted mb-0">System performance over the latest recorded days</p>
+        </div>
+        <span class="badge rounded-pill bg-light text-dark border">{{ logs|length }} records</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 iot-metrics-table">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col" class="text-center">PDR %</th>
+              <th scope="col" class="text-center">Avg Latency</th>
+              <th scope="col" class="text-center">Alerts Under 2 min</th>
+              <th scope="col" class="text-center">Water Reduction</th>
+              <th scope="col" class="text-center">Uptime</th>
+              <th scope="col" class="text-center">Crop Accuracy</th>
+              <th scope="col" class="text-center">SUS Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in logs %}
+            <tr>
+              <th scope="row" class="fw-semibold">{{ log.date|date:"d M Y" }}</th>
+              <td class="text-center">
+                {% if log.packet_delivery_ratio != None %}
+                  <span class="{% if log.packet_delivery_ratio >= 95 %}text-success{% else %}text-danger{% endif %} fw-semibold">{{ log.packet_delivery_ratio }}%</span>
+                {% else %}—{% endif %}
+              </td>
+              <td class="text-center">
+                {% if log.avg_alert_latency_sec != None %}
+                  <span class="{% if log.avg_alert_latency_sec <= 120 %}text-success{% else %}text-danger{% endif %}">{{ log.avg_alert_latency_sec|floatformat:1 }} s</span>
+                {% else %}—{% endif %}
+              </td>
+              <td class="text-center">{% if log.alerts_under_2min_pct != None %}{{ log.alerts_under_2min_pct }}%{% else %}—{% endif %}</td>
+              <td class="text-center">{% if log.water_reduction_pct != None %}{{ log.water_reduction_pct }}%{% else %}—{% endif %}</td>
+              <td class="text-center">
+                {% if log.server_uptime_pct != None %}
+                  <span class="{% if log.server_uptime_pct >= 99 %}text-success{% else %}text-warning{% endif %}">{{ log.server_uptime_pct }}%</span>
+                {% else %}—{% endif %}
+              </td>
+              <td class="text-center">{% if log.crop_pred_accuracy_pct != None %}{{ log.crop_pred_accuracy_pct }}%{% else %}—{% endif %}</td>
+              <td class="text-center">
+                {% if log.sus_score != None %}
+                  <span class="{% if log.sus_score >= 68 %}text-success{% elif log.sus_score >= 51 %}text-warning{% else %}text-danger{% endif %} fw-semibold">{{ log.sus_score }}</span>
+                {% else %}—{% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8">
+                <div class="iot-metrics-empty">
+                  <i class="bi bi-clipboard-data" aria-hidden="true"></i>
+                  <p class="fw-semibold mb-1">No metrics recorded yet</p>
+                  <p class="small text-muted mb-0">Daily results will appear here after the system metrics command has run.</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card border-0 shadow-sm iot-metrics-panel" aria-labelledby="metric-targets-heading">
+      <div class="card-header bg-white p-3 p-md-4">
+        <h2 id="metric-targets-heading" class="h4 mb-1">Evaluation Targets</h2>
+        <p class="small text-muted mb-0">Reference values for system performance</p>
+      </div>
+      <div class="card-body p-3 p-md-4">
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3">
+          <div class="col"><div class="iot-metric-target"><span class="text-success">PDR Target</span><strong>≥ 95%</strong></div></div>
+          <div class="col"><div class="iot-metric-target"><span class="text-primary">Alert Latency Target</span><strong>&lt; 2 minutes (120 s)</strong></div></div>
+          <div class="col"><div class="iot-metric-target"><span class="text-primary">Crop Accuracy Target</span><strong>≥ 85% (k-fold CV)</strong></div></div>
+          <div class="col"><div class="iot-metric-target"><span class="text-warning">Water Reduction Target</span><strong>15–30% vs manual</strong></div></div>
+          <div class="col"><div class="iot-metric-target"><span class="text-success">System Uptime Target</span><strong>≥ 99%</strong></div></div>
+          <div class="col"><div class="iot-metric-target"><span class="text-secondary">SUS Score Target</span><strong>≥ 68 (Good usability)</strong></div></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="mt-4">
+      <a href="{% url 'iot_sensor:field_dashboard' %}" class="btn btn-outline-success">
+        <i class="bi bi-arrow-left me-1" aria-hidden="true"></i> Back to Field Dashboard
+      </a>
+    </div>
+  </div>
+</section>
+{% endblock %}

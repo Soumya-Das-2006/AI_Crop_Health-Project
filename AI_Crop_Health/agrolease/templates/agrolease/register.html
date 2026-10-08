@@ -91,8 +91,8 @@
                         required
                     >
                         <option value="">Select your role</option>
-                        <option value="owner">Land Owner</option>
-                        <option value="farmer">Farmer</option>
+                        <option value="owner" {% if selected_role == 'owner' %}selected{% endif %}>Land Owner</option>
+                        <option value="farmer" {% if selected_role == 'farmer' %}selected{% endif %}>Farmer</option>
                     </select>
                 </div>
                 <p class="agrolease-verification-note"><i class="bi bi-shield-check" aria-hidden="true"></i> Land Owners are verified by an administrator before they can publish land listings.</p>

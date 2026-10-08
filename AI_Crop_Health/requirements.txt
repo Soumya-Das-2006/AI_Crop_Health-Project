@@ -1,89 +1,59 @@
-# Core Django
-Django>=4.2,<5.0
+# ======================================================================
+# AI Crop Health - server dependencies
+# ======================================================================
+# Python 3.11
+#   pip install -r requirements.txt
+#
+# This is the SERVER set: everything needed to run the site in production.
+# It deliberately leaves out TensorFlow and the training-only libraries -
+# see requirements-ml.txt for those and for why.
+#
+# This file previously contained three concatenated copies of itself with
+# conflicting pins (Django>=4.2,<5.0 alongside django==4.2.17, both psycopg
+# and psycopg2-binary, tensorflow pinned at two different floors). Rewritten
+# as a single list, with upper bounds so a new major release of a dependency
+# cannot silently break a deploy.
+# ======================================================================
 
-# TensorFlow Lite (Python 3.12 compatible)
-tensorflow>=2.16.0
-tf-keras>=2.21.0,<2.22.0
+# ---------------------------------------------------------------- Framework
+Django>=4.2.17,<5.0
+python-dotenv>=1.0.1,<2.0
 
-# Image processing
-Pillow>=10.0.0
-opencv-python>=4.8.0
+# ---------------------------------------------------------------- Imaging
+Pillow>=11.0,<12.0
+# headless, not opencv-python: the server has no display, and the GUI build
+# drags in X11/GTK shared libraries that are not present on a slim Linux image
+# and add ~300MB for nothing. Same cv2 API.
+opencv-python-headless>=4.8,<5.0
 
-# Numerical computing
-numpy>=1.26.0
-pandas>=2.0.0
+# ---------------------------------------------------------------- Classic ML (runtime)
+# Used by the crop and fertilizer recommenders, which load small .pkl models.
+# Upper bounds matter here specifically: the crop and fertilizer models are
+# pickled estimators. A major scikit-learn release changes the internal class
+# layout and the .pkl files stop unpickling - on the server, at the moment a
+# farmer uses the feature. Verified working on scikit-learn 1.9 / numpy 2.4.
+numpy>=1.26,<3.0
+scikit-learn>=1.3,<2.0
+joblib>=1.3,<2.0
 
-# Production
-gunicorn>=21.2.0
-whitenoise>=6.5.0
+# ---------------------------------------------------------------- External services
+google-genai>=0.8.0,<1.0      # Gemini: chatbot fallback provider
+requests>=2.32.3,<3.0         # weather, crop.health, insect.id, Groq, translation
+markdown>=3.5,<4.0            # Ask AI / chatbot answers are authored in markdown
+bleach>=6.0,<7.0              # ...and sanitised before they reach a page
 
-# PostgreSQL
-psycopg>=3.1
+# ---------------------------------------------------------------- Production serving
+gunicorn>=21.2,<27.0
+whitenoise>=6.5,<7.0
+psycopg[binary]>=3.1,<4.0     # PostgreSQL driver (Django 4.2 supports psycopg 3)
 
-
-
-
-# Core Django
-Django>=4.2,<5.0
-
-# TensorFlow Lite for model inference
-tensorflow>=2.13.0
-
-# Image processing
-Pillow>=10.0.0
-opencv-python>=4.8.0
-
-# Numerical computing
-numpy>=1.24.0
-
-# Optional: For production deployment
-gunicorn>=21.2.0
-whitenoise>=6.5.0
-
-# Optional: Database (if using PostgreSQL in production)
-psycopg2-binary>=2.9.0
-
-# ================================================
-# AI_Crop_Health Requirements
-# ================================================
-# Python 3.12+ recommended
-# Install with: pip install -r requirements.txt
-# ================================================
-
-# Django
-django==4.2.17
-
-# Environment Variables
-python-dotenv==1.0.1
-
-# Google Gemini AI (NEW SDK)
-google-genai==0.8.0
-
-# Weather API
-requests==2.32.3
-
-# Image Processing
-Pillow==11.0.0
-
-# Database (optional - for PostgreSQL)
-# psycopg2-binary==2.9.10
-
-# Machine Learning (for crop prediction)
-scikit-learn>=1.3.0
-
-# Machine Learning (for disease detection)
-# tensorflow==2.18.0
-# tensorflow-lite==2.15.0
-# numpy==1.26.4
-
-# Development Tools
-# django-debug-toolbar==4.4.6
-# ipython==8.30.0
-
-# Production
-# gunicorn==23.0.0
-# whitenoise==6.8.2
-
-# Testing
-# pytest==8.3.4
-# pytest-django==4.9.0
+# ---------------------------------------------------------------- Optional
+# xgboost is imported inside a try/except in
+# iot_sensor/services/xgboost_predictor.py and falls back to the existing
+# scikit-learn model when absent, so it is genuinely optional. Install it only
+# if you have trained an XGBoost model to deploy.
+# xgboost>=2.0,<4.0
+#
+# Error tracking. Recommended once real users are on the system; the settings
+# module enables it only when SENTRY_DSN is set.
+# sentry-sdk[django]>=2.0,<3.0

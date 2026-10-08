@@ -1,0 +1,53 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% comment %}
+Django looks for 404.html at the TEMPLATES root. The previous custom page lived
+at ai_crop_health/404.html, which Django never loads, so visitors got the bare
+default. That page also hotlinked Bootstrap 3 and a GIF from dribbble.com -
+external requests on an error page, which is exactly when the network is least
+trustworthy. This one uses the site's own layout and assets only.
+{% endcomment %}
+
+{% block title %}Page not found (404) — AI Crop Health{% endblock %}
+{% block meta_description %}The page you were looking for could not be found.{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container text-center" style="max-width: 680px; padding-top: 3rem; padding-bottom: 3rem;">
+
+    <p class="text-success fw-bold mb-1" style="font-size: clamp(3.5rem, 12vw, 6rem); line-height: 1;">404</p>
+    <h1 class="h3 mb-3">We couldn&rsquo;t find that page</h1>
+    <p class="text-muted mb-4">
+      The link may be out of date, or the page may have moved. Nothing is wrong
+      with your account or your data.
+    </p>
+
+    <div class="d-flex gap-2 justify-content-center flex-wrap mb-5">
+      <a href="{% url 'index' %}" class="btn btn-success">Go to homepage</a>
+      <a href="{% url 'detection:diagnosis' %}" class="btn btn-outline-success">Scan a crop</a>
+    </div>
+
+    <div class="text-start border-top pt-4">
+      <h2 class="h6 text-uppercase text-muted mb-3">Popular pages</h2>
+      <div class="row g-2">
+        <div class="col-12 col-sm-6">
+          <ul class="list-unstyled mb-0">
+            <li class="mb-2"><a href="{% url 'detection:diagnosis' %}">Leaf disease diagnosis</a></li>
+            <li class="mb-2"><a href="{% url 'detection:crop_recommendation' %}">Crop recommendation</a></li>
+            <li class="mb-2"><a href="{% url 'detection:fertilizer_recommendation' %}">Fertilizer recommendation</a></li>
+          </ul>
+        </div>
+        <div class="col-12 col-sm-6">
+          <ul class="list-unstyled mb-0">
+            <li class="mb-2"><a href="{% url 'features:weather_dashboard' %}">Weather</a></li>
+            <li class="mb-2"><a href="{% url 'features:marketprice' %}">Market prices</a></li>
+            <li class="mb-2"><a href="{% url 'contact:form' %}">Contact us</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

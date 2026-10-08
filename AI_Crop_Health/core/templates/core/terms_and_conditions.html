@@ -1,0 +1,169 @@
+{% extends "layouts/layout.html" %}
+{% load static %}
+
+{% block title %}Terms &amp; Conditions — AI Crop Health{% endblock %}
+{% block meta_description %}The terms governing use of AI Crop Health: crop diagnosis, land leasing between owners and farmers, IoT field monitoring and the marketplace.{% endblock %}
+{% block meta_keywords %}terms and conditions, terms of service, AI Crop Health{% endblock %}
+
+{% block content %}
+<div class="page-title dark-background" style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
+  <div class="container position-relative">
+    <h1>Terms &amp; Conditions</h1>
+    <p>The rules for using this service</p>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="{% url 'index' %}">Home</a></li>
+        <li class="current" aria-current="page">Terms &amp; Conditions</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+
+<section class="section">
+  <div class="container" style="max-width: 860px;">
+
+    <div class="alert alert-info" role="alert">
+      These terms are generated from the company details configured for this
+      deployment. You are facilitating land-lease contracts and giving crop advice
+      that affects people's income, so have a qualified lawyer review the
+      liability sections before relying on them. This is not legal advice.
+    </div>
+
+    <p class="text-muted">Last updated: {{ company.policy_updated }}</p>
+
+    <h2 class="h4 mt-4">1. Agreement</h2>
+    <p>
+      By using AI Crop Health you agree to these terms. If you do not agree, do not
+      use the service. The service is operated by <strong>{{ company.name }}</strong>,
+      {{ company.address }}, contactable at <strong>{{ company.email }}</strong>.
+    </p>
+
+    <h2 class="h4 mt-4">2. Who may use it</h2>
+    <p>
+      You must be at least 18 and legally able to enter a contract. You must give
+      accurate information, especially for verification, and you are responsible for
+      everything done through your account. Tell us immediately at
+      <strong>{{ company.email }}</strong> if you think someone else is using it.
+    </p>
+
+    <h2 class="h4 mt-4">3. Crop diagnosis is advisory only</h2>
+    <p class="fw-semibold">
+      Please read this section carefully — it is the most important one.
+    </p>
+    <ul>
+      <li>Disease diagnosis, crop recommendations and fertilizer suggestions are produced by machine-learning models.</li>
+      <li><strong>They can be wrong, including confidently wrong.</strong> The accuracy of the disease model has not been independently measured.</li>
+      <li>They are <strong>not</strong> a substitute for a qualified agronomist, plant pathologist or your local agricultural extension officer.</li>
+      <li>Confirm with a professional before you spend money on treatment, apply any chemical, or destroy a crop.</li>
+      <li>You are solely responsible for what you do with the output.</li>
+    </ul>
+    <p>
+      Follow the label and the law for any pesticide or fertilizer you apply. We do
+      not supply chemicals and we do not warrant that a suggested product is
+      approved, available or appropriate for your land.
+    </p>
+
+    <h2 class="h4 mt-4">4. Land leasing</h2>
+    <p>
+      We are a <strong>platform that introduces land owners to farmers</strong>. We
+      are not a party to any lease, not an agent for either side, and not a broker.
+    </p>
+    <ul>
+      <li>Any lease is a contract between the owner and the farmer alone.</li>
+      <li>Verification checks the documents submitted to us. It is <strong>not</strong> a guarantee of good title, of a party's honesty, or of their ability to perform.</li>
+      <li>Do your own checks on title and boundaries before committing. Land records are the authoritative source, not this platform.</li>
+      <li>Agreements generated here are templates for convenience. Have one reviewed before signing; registration and stamp duty may be required by law.</li>
+      <li>Rent, payment and disputes are between the two parties. We do not hold money and we do not arbitrate.</li>
+    </ul>
+
+    <h2 class="h4 mt-4">5. IoT devices and irrigation</h2>
+    <ul>
+      <li>You own and are responsible for your hardware, its installation and its electrical safety.</li>
+      <li>Each device has its own key. <strong>Keep it secret</strong>; anyone holding it can submit readings as that device. Rotate it immediately if it leaks.</li>
+      <li>Sensor data may be delayed, missing or wrong — through connectivity loss, power failure, a damaged sensor or tampering.</li>
+      <li>
+        <strong>Automated irrigation acts on that data.</strong> A faulty reading can
+        water at the wrong time or fail to water at all. Do not rely on this system
+        alone where failure would cause real loss, and keep a manual check.
+      </li>
+      <li>You must not submit readings for land you do not own or lawfully farm.</li>
+    </ul>
+
+    <h2 class="h4 mt-4">6. Marketplace</h2>
+    <p>
+      Listings are provided by sellers. Prices and availability can change. We do not
+      warrant that any product is fit for your purpose. Market price information is
+      indicative and may be out of date; do not trade solely on it.
+    </p>
+
+    <h2 class="h4 mt-4">7. What you must not do</h2>
+    <ul>
+      <li>Break any applicable law.</li>
+      <li>Impersonate anyone, or submit forged or altered documents.</li>
+      <li>Upload someone else's identity documents without their consent.</li>
+      <li>Probe, scrape, overload or attempt to bypass the security of the service, including the device ingest API.</li>
+      <li>Submit false sensor data, or data for land you have no right to.</li>
+      <li>Upload malware, or anything unlawful or abusive.</li>
+      <li>Resell or redistribute the service or its data without our written permission.</li>
+    </ul>
+
+    <h2 class="h4 mt-4">8. Your content</h2>
+    <p>
+      You keep ownership of what you upload. You grant us a licence to store and
+      process it so we can operate the service — for example running a photograph
+      through diagnosis and showing it back to you in your history. We may use
+      <strong>anonymised, aggregated</strong> data to improve the models. We will not
+      publish your identifiable photographs or documents without your permission.
+    </p>
+
+    <h2 class="h4 mt-4">9. Availability</h2>
+    <p>
+      We provide the service "as is" and do not promise it will be uninterrupted or
+      error-free. We may change, suspend or withdraw features, and we may need
+      downtime for maintenance. Where reasonably possible we will give notice.
+    </p>
+
+    <h2 class="h4 mt-4">10. Liability</h2>
+    <p>
+      To the fullest extent the law allows, we are not liable for crop loss, reduced
+      yield, wasted treatment costs, lost profit, lost data, or any indirect or
+      consequential loss arising from use of this service — including a wrong
+      diagnosis, a missed alert, an irrigation action or failure, or a dispute with
+      another user. Where liability cannot be excluded it is limited to
+      <strong>[AMOUNT / the fees you paid us in the preceding 12 months]</strong>.
+    </p>
+    <p>
+      Nothing here excludes liability that cannot lawfully be excluded, including for
+      death or personal injury caused by negligence, or for fraud.
+    </p>
+
+    <h2 class="h4 mt-4">11. Suspension and closure</h2>
+    <p>
+      We may suspend or close an account that breaches these terms, submits forged
+      documents or false sensor data, or puts the service or other users at risk. You
+      may close your account at any time by contacting <strong>{{ company.email }}</strong>.
+      Obligations under a lease you have already entered survive closure.
+    </p>
+
+    <h2 class="h4 mt-4">12. Changes</h2>
+    <p>
+      We may update these terms. The date above will change, and for significant
+      changes we will notify you. Continuing to use the service after a change means
+      you accept it.
+    </p>
+
+    <h2 class="h4 mt-4">13. Governing law</h2>
+    <p>
+      These terms are governed by the laws of <strong>{{ company.jurisdiction }}</strong>,
+      and the courts of <strong>{{ company.courts_city }}</strong> have exclusive
+      jurisdiction.
+    </p>
+
+    <hr class="my-4">
+    <p class="mb-0">
+      See also our <a href="{% url 'core:privacy_policy' %}">Privacy Policy</a>.
+    </p>
+
+  </div>
+</section>
+{% endblock %}

@@ -11,7 +11,7 @@
      style="background-image: url({% static 'assets/img/page-title-bg.webp' %});">
   <div class="container position-relative">
     <h1>AI Crop Disease Diagnosis</h1>
-    <p>Professional-grade disease detection with 98-100% accuracy enforcement</p>
+    <p>Upload a leaf photo for an instant assessment across 38 crop conditions</p>
     <nav class="breadcrumbs">
       <ol>
         <li><a href="{% url 'index' %}">Home</a></li>
@@ -195,8 +195,23 @@
                 <span class="badge bg-{{ result.ui_color }} fs-5 px-4 py-2">
                   {{ result.status_badge }}
                 </span>
-                <p class="text-muted small mt-2 mb-0">{{ result.accuracy_policy }}</p>
+                {% if result.recommendation %}
+                  <p class="text-muted small mt-2 mb-0">{{ result.recommendation }}</p>
+                {% endif %}
               </div>
+
+              {% if result.limited_coverage %}
+                <div class="alert alert-warning d-flex align-items-start">
+                  <i class="bi bi-wifi-off me-2 mt-1"></i>
+                  <div>
+                    <strong>Offline mode - limited crops.</strong>
+                    This answer came from the on-device model, which only knows:
+                    {{ result.supported_crops|join:", " }}.
+                    If your crop is not in that list, ignore this result and try
+                    again when you have a network connection.
+                  </div>
+                </div>
+              {% endif %}
 
               <!-- Core Identification -->
               <div class="row mb-4">
@@ -230,12 +245,18 @@
                   </div>
                 </div>
                 <small class="text-muted">
+                  {# This number is the model's own confidence in THIS image. It
+                     is raw softmax unless PLANT_DISEASE_TEMPERATURE has been
+                     fitted, so it is systematically overconfident, and the
+                     model's accuracy has never been measured on a held-out set.
+                     Telling a farmer a result is "safe for treatment decisions"
+                     invites real financial loss on a wrong call. #}
                   {% if result.confidence >= 98 %}
-                    Highly reliable - Safe for treatment decisions
+                    Strong match &mdash; still confirm before you treat
                   {% elif result.confidence >= 95 %}
-                    Moderate confidence - Informational only
+                    Moderate confidence &mdash; informational only
                   {% else %}
-                    Low confidence - Re-capture recommended
+                    Low confidence &mdash; re-capture the photo
                   {% endif %}
                 </small>
               </div>
@@ -275,13 +296,42 @@
                 </div>
               {% endif %}
 
+              {% if result.top_predictions|length > 1 %}
+                <div class="mb-4">
+                  <h5 class="fw-bold">
+                    <i class="bi bi-list-ol"></i> Other possibilities
+                  </h5>
+                  <p class="text-muted small">
+                    Ranked by likelihood. The correct answer is far more often
+                    somewhere in this list than in the top line alone - check
+                    all three against what you can see on the plant.
+                  </p>
+                  <ul class="list-group">
+                    {% for candidate in result.top_predictions %}
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                          {% if forloop.first %}<strong>{% endif %}
+                          {% if candidate.name %}{{ candidate.name }}{% else %}{{ candidate.class_name }}{% endif %}
+                          {% if forloop.first %}</strong>{% endif %}
+                          {% if candidate.scientific_name %}
+                            <em class="text-muted small d-block">{{ candidate.scientific_name }}</em>
+                          {% endif %}
+                        </span>
+                        <span class="badge bg-secondary rounded-pill">{{ candidate.confidence }}%</span>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                </div>
+              {% endif %}
+
               {% if result.solutions %}
                 <div class="mb-4">
                   <h5 class="fw-bold text-success">
                     <i class="bi bi-wrench"></i> Treatment Solutions
                   </h5>
                   <div class="alert alert-success">
-                    <strong>Confidence ≥ 98%:</strong> Treatment recommendations provided below are reliable for field application.
+                    This diagnosis passed the confidence check. Confirm the
+                    symptoms match before buying or applying anything.
                   </div>
                   <ol class="ps-3">
                     {% for solution in result.solutions %}
@@ -289,14 +339,15 @@
                     {% endfor %}
                   </ol>
                 </div>
-              {% else %}
-                {% if result.disease != "Healthy" and result.confidence < 98 %}
-                  <div class="alert alert-warning">
-                    <i class="bi bi-shield-exclamation"></i>
-                    <strong>Treatment Withheld:</strong> Confidence below 98% threshold. 
-                    Please re-capture the image or consult an agricultural expert before taking action.
-                  </div>
-                {% endif %}
+              {% elif result.treatment_withheld %}
+                <div class="alert alert-warning">
+                  <i class="bi bi-shield-exclamation"></i>
+                  <strong>No treatment shown.</strong>
+                  We are not confident enough to name a chemical. Spraying the
+                  wrong one costs money and will not save the crop. Show the
+                  plant to your local KVK or agriculture officer, or upload a
+                  sharper close-up of the affected leaf in daylight.
+                </div>
               {% endif %}
 
               {% if result.prevention %}
@@ -313,6 +364,44 @@
               {% endif %}
 
             </div>
+
+            <!-- ============ ASK AI ============ -->
+            {% if result.diagnosis_log_id %}
+            <div class="card-body border-top" id="ask-ai" data-log-id="{{ result.diagnosis_log_id }}">
+              <h5 class="fw-bold mb-1">
+                <i class="bi bi-chat-dots"></i> Ask AI about this plant
+              </h5>
+              <p class="text-muted small">
+                The assistant can see this photo and the diagnosis above.
+                {% if result.treatment_withheld %}
+                  Because the diagnosis is uncertain, it will not name any
+                  chemical - ask your KVK officer before buying anything.
+                {% endif %}
+              </p>
+
+              <!-- Not translated: Ask AI already answers in the farmer's own language,
+                   and these turns contain what the farmer typed. Sending them to a
+                   public translation endpoint would leak them and mangle them. -->
+              <div id="ask-ai-thread" class="mb-3" data-no-translate="true"></div>
+
+              <div class="d-flex flex-wrap gap-2 mb-3" id="ask-ai-presets">
+                {% for preset_id, preset_label in ask_ai_presets %}
+                  <button type="button" class="btn btn-outline-secondary btn-sm ask-ai-preset"
+                          data-preset="{{ preset_id }}">{{ preset_label }}</button>
+                {% endfor %}
+              </div>
+
+              <div class="input-group">
+                <input type="text" id="ask-ai-input" class="form-control"
+                       maxlength="500"
+                       placeholder="Or type your own question about this plant...">
+                <button class="btn btn-success" type="button" id="ask-ai-send">
+                  <i class="bi bi-send"></i>
+                </button>
+              </div>
+              <div id="ask-ai-error" class="text-danger small mt-2 d-none"></div>
+            </div>
+            {% endif %}
 
             <!-- Save to History Action -->
             {% if result.diagnosis_log_id %}
@@ -390,16 +479,21 @@
           </div>
         </div>
 
-        <!-- Accuracy Policy -->
+        <!-- Confidence policy.
+             Renamed from "Accuracy Policy": these thresholds gate how confident
+             the model is about ONE image. They say nothing about how often the
+             model is right, which has never been measured on a held-out set. -->
         <div class="card shadow-sm mb-4 border-success">
           <div class="card-header bg-success text-white">
             <h5 class="mb-0">
-              <i class="bi bi-shield-check"></i> Accuracy Policy
+              <i class="bi bi-shield-check"></i> How we handle confidence
             </h5>
           </div>
           <div class="card-body">
             <p class="small mb-2">
-              This system enforces a <strong>98-100% accuracy standard</strong> for treatment recommendations.
+              We only show treatment guidance when the model is highly confident
+              about an image. Confidence is not the same as being correct, so
+              every result stays advisory.
             </p>
             
             <table class="table table-sm small">
@@ -811,5 +905,160 @@ document.addEventListener('DOMContentLoaded', function() {
   transform: translateY(0);
 }
 </style>
+
+
+<style>
+/* Ask AI answers are markdown-rendered: keep headings and lists compact so a
+   structured answer still fits a phone screen without endless scrolling. */
+.ask-ai-bubble h3 { font-size: 1.05rem; font-weight: 700; margin: .9rem 0 .35rem; }
+.ask-ai-bubble h4 { font-size: .98rem; font-weight: 700; margin: .75rem 0 .3rem; }
+.ask-ai-bubble h5 { font-size: .92rem; font-weight: 600; margin: .6rem 0 .25rem; }
+.ask-ai-bubble > *:first-child { margin-top: 0; }
+.ask-ai-bubble > *:last-child { margin-bottom: 0; }
+.ask-ai-bubble p { margin-bottom: .5rem; }
+.ask-ai-bubble ul, .ask-ai-bubble ol { margin-bottom: .5rem; padding-left: 1.25rem; }
+.ask-ai-bubble li { margin-bottom: .25rem; }
+.ask-ai-bubble ul ul, .ask-ai-bubble ol ol { margin-top: .25rem; margin-bottom: .25rem; }
+.ask-ai-bubble table { width: 100%; font-size: .9rem; margin-bottom: .5rem; }
+.ask-ai-bubble th, .ask-ai-bubble td { border: 1px solid #dee2e6; padding: .3rem .5rem; }
+.ask-ai-bubble code { background: rgba(0,0,0,.05); padding: .1rem .3rem; border-radius: 3px; }
+</style>
+<script>
+// ===================== ASK AI =====================
+// Talks to detection:ask_ai_api. Every turn is persisted server-side, so a
+// reload replays the thread rather than losing it.
+(function () {
+  const root = document.getElementById('ask-ai');
+  if (!root) return;
+
+  const logId = root.dataset.logId;
+  const thread = document.getElementById('ask-ai-thread');
+  const input = document.getElementById('ask-ai-input');
+  const sendBtn = document.getElementById('ask-ai-send');
+  const errorBox = document.getElementById('ask-ai-error');
+  let busy = false;
+
+  function csrfToken() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function addBubble(role, text, gated, isHtml) {
+    const wrap = document.createElement('div');
+    wrap.className = 'mb-2 d-flex ' + (role === 'user' ? 'justify-content-end' : 'justify-content-start');
+    const bubble = document.createElement('div');
+    bubble.className = 'p-3 rounded-3 ask-ai-bubble ' +
+      (role === 'user' ? 'bg-success text-white' : 'bg-light border');
+    bubble.style.maxWidth = '90%';
+    // Answers arrive as HTML already sanitised server-side by
+    // detection/answer_format.py (bleach, no attributes, tiny tag allowlist).
+    // Everything else is escaped here.
+    if (isHtml) {
+      bubble.innerHTML = text;
+    } else {
+      bubble.style.whiteSpace = 'pre-wrap';
+      bubble.innerHTML = escapeHtml(text);
+    }
+    if (gated) {
+      const note = document.createElement('div');
+      note.className = 'small text-muted mt-2 border-top pt-1';
+      note.textContent = 'No chemical named: the diagnosis is not confident enough. Confirm with your KVK officer.';
+      bubble.appendChild(note);
+    }
+    wrap.appendChild(bubble);
+    thread.appendChild(wrap);
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return bubble;
+  }
+
+  function showError(message) {
+    errorBox.textContent = message;
+    errorBox.classList.remove('d-none');
+  }
+
+  function setBusy(state) {
+    busy = state;
+    sendBtn.disabled = state;
+    input.disabled = state;
+    document.querySelectorAll('.ask-ai-preset').forEach(function (b) { b.disabled = state; });
+  }
+
+  function send(body, displayText) {
+    if (busy) return;
+    errorBox.classList.add('d-none');
+    setBusy(true);
+    addBubble('user', displayText);
+    const pending = addBubble('assistant', 'Thinking...');
+
+    fetch("{% url 'detection:ask_ai_api' %}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+      body: JSON.stringify(Object.assign({ diagnosis_log_id: parseInt(logId, 10) }, body))
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (!res.ok) {
+          pending.remove();
+          showError(res.data.error || 'Something went wrong.');
+          return;
+        }
+        pending.style.whiteSpace = '';
+        pending.innerHTML = res.data.answer_html || escapeHtml(res.data.answer || '');
+        if (res.data.treatment_gated) {
+          const note = document.createElement('div');
+          note.className = 'small text-muted mt-2 border-top pt-1';
+          note.textContent = 'No chemical named: the diagnosis is not confident enough. Confirm with your KVK officer.';
+          pending.appendChild(note);
+        }
+      })
+      .catch(function () {
+        pending.remove();
+        showError('Network error. Please try again.');
+      })
+      .finally(function () { setBusy(false); });
+  }
+
+  document.querySelectorAll('.ask-ai-preset').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      send({ preset: btn.dataset.preset }, btn.textContent.trim());
+    });
+  });
+
+  function sendTyped() {
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    send({ question: text }, text);
+  }
+
+  sendBtn.addEventListener('click', sendTyped);
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); sendTyped(); }
+  });
+
+  // Replay any earlier turns for this diagnosis.
+  fetch("{% url 'detection:ask_ai_history' 0 %}".replace('/0/', '/' + logId + '/'))
+    .then(function (r) { return r.ok ? r.json() : { messages: [] }; })
+    .then(function (data) {
+      (data.messages || []).forEach(function (m) {
+        if (m.error) return;
+        const isAnswer = m.role === 'assistant';
+        addBubble(
+          m.role,
+          isAnswer && m.content_html ? m.content_html : m.content,
+          m.treatment_gated && isAnswer,
+          isAnswer && !!m.content_html
+        );
+      });
+    })
+    .catch(function () { /* history is optional */ });
+})();
+</script>
 
 {% endblock %}

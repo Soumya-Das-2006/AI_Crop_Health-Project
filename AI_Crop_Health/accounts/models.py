@@ -3,6 +3,10 @@ from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='global_profile')
     
@@ -26,8 +30,17 @@ class UserProfile(models.Model):
 
 @receiver(post_save, sender=User)
 def create_or_update_user_profile(sender, instance, created, **kwargs):
-    if created:
-        UserProfile.objects.create(user=instance)
-    else:
-        # Avoid creating profile twice if not needed, but ensure it exists
+    """
+    Ensure every User has a global profile.
+
+    get_or_create on both branches keeps legacy users (created before this model
+    existed) backfilled, and is idempotent so a second signal firing cannot
+    raise IntegrityError. Wrapped because post_save shares the caller's
+    transaction: an exception here would roll back registration itself.
+    """
+    try:
         UserProfile.objects.get_or_create(user=instance)
+    except Exception:
+        logger.exception(
+            "Could not ensure global UserProfile for user id=%s", instance.pk,
+        )

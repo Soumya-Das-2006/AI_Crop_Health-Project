@@ -551,40 +551,13 @@ document.addEventListener('DOMContentLoaded', () => {
     window.schemesManager = new SchemesManager();
     window.schemesManager.init();
     
-    // Load sample data if no data from backend
+    // No hardcoded fallback here on purpose. This block used to invent four
+    // government schemes with budget figures when the backend returned nothing.
+    // Those numbers were not sourced from anywhere, and showing a farmer a
+    // fabricated scheme budget as if it were official is worse than showing an
+    // empty list - they may act on it. An empty state is handled by the manager.
     if (!SCHEMES_DATA || SCHEMES_DATA.length === 0) {
-        console.log('No schemes data from backend, using sample data');
-        window.schemesManager.schemes = [
-            {
-                id: 1,
-                name: "National Food Security Mission",
-                ministry: "Agriculture & Farmers Welfare",
-                budget: "12,500",
-                category_name: "Agricultural Support"
-            },
-            {
-                id: 2,
-                name: "PM Fasal Bima Yojana",
-                ministry: "Agriculture & Farmers Welfare",
-                budget: "16,000",
-                category_name: "Insurance"
-            },
-            {
-                id: 3,
-                name: "PM-KISAN Samman Nidhi",
-                ministry: "Agriculture & Farmers Welfare",
-                budget: "75,000",
-                category_name: "Financial Support"
-            },
-            {
-                id: 4,
-                name: "Paramparagat Krishi Vikas Yojana",
-                ministry: "Agriculture & Farmers Welfare",
-                budget: "4,500",
-                category_name: "Organic Farming"
-            }
-        ];
-        window.schemesManager.renderSchemes();
+        console.warn('No schemes returned by the backend; showing empty state.');
     }
 });
 </script>

@@ -47,24 +47,13 @@ def global_login(request):
     if request.method == 'POST':
         identifier = request.POST.get('identifier', '').strip()
         if not identifier:
-            messages.error(request, 'Please enter your mobile number or email.')
+            messages.error(request, 'Please enter your account email address.')
             return render(request, 'accounts/login.html', {'next': next_url})
         
-        user = None
-        method = 'email' if '@' in identifier else 'mobile'
-        
-        if method == 'email':
-            if not is_valid_email(identifier):
-                messages.error(request, 'Please enter a valid email address.')
-                return render(request, 'accounts/login.html', {'next': next_url})
-            user = User.objects.filter(email=identifier).first()
-        else:
-            normalized_phone = normalize_phone(identifier)
-            if not normalized_phone:
-                messages.error(request, 'Please enter a valid 10-digit mobile number.')
-                return render(request, 'accounts/login.html', {'next': next_url})
-            user = User.objects.filter(global_profile__phone_number=normalized_phone).first()
-            identifier = normalized_phone
+        if not is_valid_email(identifier):
+            messages.error(request, 'Please enter a valid account email address.')
+            return render(request, 'accounts/login.html', {'next': next_url})
+        user = User.objects.filter(email=identifier).first()
 
         if not user:
             messages.error(request, 'Account not found. Please register first.')
@@ -75,7 +64,7 @@ def global_login(request):
         
         request.session[OTP_SESSION_KEY] = {
             'identifier': identifier,
-            'method': method,
+            'method': 'email',
             'code': otp_code,
             'expires_at': expires_at,
             'attempts': 0,
@@ -86,26 +75,16 @@ def global_login(request):
         context = {
             'otp_sent': True,
             'identifier': identifier,
-            'method': method,
             'next': next_url,
         }
         
-        if method == 'email':
-            success = send_otp_email(user.email, otp_code)
-            if success:
-                messages.success(request, f'OTP sent to {user.email}')
-            else:
-                messages.error(request, 'Failed to send email. Please contact support or use mobile login.')
-                if settings.DEBUG:
-                    context['development_otp'] = otp_code
+        success = send_otp_email(user.email, otp_code)
+        if success:
+            messages.success(request, f'OTP sent to {user.email}')
         else:
-            # Mobile OTP (Simulated/Console)
-            logger.info(f'Mobile OTP generated for {identifier}: {otp_code}')
+            messages.error(request, 'Failed to send email. Please try again later or contact support.')
             if settings.DEBUG:
                 context['development_otp'] = otp_code
-                messages.info(request, 'Development mode: use the OTP shown below.')
-            else:
-                messages.info(request, 'SMS delivery is not configured. Contact the administrator.')
                 
         return render(request, 'accounts/login.html', context)
         
@@ -116,10 +95,14 @@ def verify_otp(request):
     if request.method != 'POST' or not payload:
         return redirect('accounts:login')
 
+    if payload.get('method') != 'email':
+        request.session.pop(OTP_SESSION_KEY, None)
+        messages.error(request, 'Phone OTP login is unavailable. Please sign in with email.')
+        return redirect('accounts:login')
+
     context = {
         'otp_sent': True,
         'identifier': payload.get('identifier'),
-        'method': payload.get('method'),
         'next': payload.get('next', ''),
     }
     if settings.DEBUG:
@@ -145,12 +128,7 @@ def verify_otp(request):
 
     # Success
     identifier = payload['identifier']
-    method = payload['method']
-    
-    if method == 'email':
-        user = User.objects.filter(email=identifier).first()
-    else:
-        user = User.objects.filter(global_profile__phone_number=identifier).first()
+    user = User.objects.filter(email=identifier).first()
         
     if not user:
         request.session.pop(OTP_SESSION_KEY, None)
@@ -162,11 +140,8 @@ def verify_otp(request):
     
     # Mark as verified
     profile = user.global_profile
-    if method == 'email' and not profile.is_email_verified:
+    if not profile.is_email_verified:
         profile.is_email_verified = True
-        profile.save()
-    elif method == 'mobile' and not profile.is_phone_verified:
-        profile.is_phone_verified = True
         profile.save()
         
     messages.success(request, 'Login successful!')
@@ -180,6 +155,7 @@ def register(request):
         name = request.POST.get('name', '').strip()
         email = request.POST.get('email', '').strip()
         phone = normalize_phone(request.POST.get('phone'))
+
         
         if not name or not email or not phone:
             messages.error(request, 'All fields are required.')
@@ -231,6 +207,11 @@ def profile_edit(request):
         name = request.POST.get('name', '').strip()
         email = request.POST.get('email', '').strip()
         phone = normalize_phone(request.POST.get('phone'))
+        address = request.POST.get('address', '').strip()
+        city = request.POST.get('city', '').strip()
+        district = request.POST.get('district', '').strip()
+        state = request.POST.get('state', '').strip()
+        pincode = request.POST.get('pincode', '').strip()
         if not name or not is_valid_email(email) or not phone:
             messages.error(request, 'Enter a name, valid email, and 10-digit mobile number.')
         elif User.objects.filter(email=email).exclude(pk=request.user.pk).exists():
@@ -248,6 +229,11 @@ def profile_edit(request):
             if email_changed:
                 profile.is_email_verified = False
             profile.phone_number = phone
+            profile.address = address
+            profile.city = city
+            profile.district = district
+            profile.state = state
+            profile.pincode = pincode
             profile.save()
             messages.success(request, 'Your profile was updated successfully.')
             return redirect('accounts:dashboard')
