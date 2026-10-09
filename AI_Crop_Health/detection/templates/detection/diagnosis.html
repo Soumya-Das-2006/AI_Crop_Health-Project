@@ -244,21 +244,6 @@
                     {{ result.confidence_bar }}%
                   </div>
                 </div>
-                <small class="text-muted">
-                  {# This number is the model's own confidence in THIS image. It
-                     is raw softmax unless PLANT_DISEASE_TEMPERATURE has been
-                     fitted, so it is systematically overconfident, and the
-                     model's accuracy has never been measured on a held-out set.
-                     Telling a farmer a result is "safe for treatment decisions"
-                     invites real financial loss on a wrong call. #}
-                  {% if result.confidence >= 98 %}
-                    Strong match &mdash; still confirm before you treat
-                  {% elif result.confidence >= 95 %}
-                    Moderate confidence &mdash; informational only
-                  {% else %}
-                    Low confidence &mdash; re-capture the photo
-                  {% endif %}
-                </small>
               </div>
 
               <!-- Warning Message -->
